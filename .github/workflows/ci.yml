@@ -83,12 +83,7 @@ jobs:
       # Step 7: Run flake8 linter to catch PEP 8 style violations and errors
       # -----------------------------------------------------------------------
       - name: Lint with flake8
-       run: |
-      # Allow lines up to 120 characters
-      # Skip compiled bytecode files
-    flake8 src tests orchestration \
-      --max-line-length=120 \
-      --exclude=__pycache__,*.pyc
+        run: flake8 src tests orchestration --max-line-length=120 --exclude=__pycache__,*.pyc
       # -----------------------------------------------------------------------
       # Step 8: Run unit tests with coverage measurement
       # --cov=src:         measure coverage for the src/ package
