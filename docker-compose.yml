@@ -1,0 +1,73 @@
+# =============================================================================
+# docker-compose.yml
+# Docker Compose configuration for local development and pipeline execution.
+#
+# Services:
+#   pipeline – runs the full ETL pipeline inside a container
+#
+# Volume mounts ensure that the bronze CSV, silver/gold Parquet files,
+# the DuckDB database, and pipeline logs are written to the host machine
+# and persist between container restarts.
+#
+# Usage:
+#   docker compose up            – Build the image and run the pipeline
+#   docker compose up --build    – Force a rebuild before running
+#   docker compose run pipeline make test  – Run tests inside the container
+# =============================================================================
+
+version: "3.9"   # Docker Compose file format version
+
+services:
+
+  pipeline:
+    # -------------------------------------------------------------------------
+    # Build configuration
+    # Docker Compose builds the image from the Dockerfile in the current dir.
+    # -------------------------------------------------------------------------
+    build:
+      context: .            # Build context is the project root directory
+      dockerfile: Dockerfile  # Use the project Dockerfile
+
+    image: sales-pipeline:latest   # Tag the built image for easy reference
+
+    container_name: sales-pipeline   # Fixed container name for easy 'docker logs'
+
+    # -------------------------------------------------------------------------
+    # Volume mounts
+    # Each mount maps a host directory to the corresponding path inside the
+    # container so pipeline outputs persist on the developer's machine.
+    # -------------------------------------------------------------------------
+    volumes:
+      # Bronze input: place the Kaggle CSV here before running the pipeline.
+      - ./data/bronze:/app/data/bronze
+
+      # Silver output: cleaned Parquet written here by the cleaner step.
+      - ./data/silver:/app/data/silver
+
+      # Gold output: aggregated Parquet files written here by the loader step.
+      - ./data/gold:/app/data/gold
+
+      # DuckDB: the analytical database file persists between runs.
+      - ./database:/app/database
+
+      # Logs: JSON-structured pipeline logs written here for inspection.
+      - ./logs:/app/logs
+
+    # -------------------------------------------------------------------------
+    # Environment variables
+    # Override these to change pipeline behaviour without rebuilding the image.
+    # -------------------------------------------------------------------------
+    environment:
+      - PYTHONUNBUFFERED=1      # Ensures log output is not buffered
+
+    # -------------------------------------------------------------------------
+    # Default command: run the full ETL pipeline.
+    # Override with: docker compose run pipeline python -m pytest tests/
+    # -------------------------------------------------------------------------
+    command: ["python", "orchestration/pipeline.py"]
+
+    # -------------------------------------------------------------------------
+    # Restart policy: do not restart automatically.
+    # The pipeline is a batch job — it runs once and exits.
+    # -------------------------------------------------------------------------
+    restart: "no"

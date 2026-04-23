@@ -1,0 +1,26 @@
+# =============================================================================
+# requirements.txt
+# Production runtime dependencies for the Superstore Sales Data Pipeline.
+#
+# Pin minor versions (>=X.Y.0) rather than exact versions to allow patch-level
+# security updates while preventing unexpected breaking changes.
+#
+# Install with:  pip install -r requirements.txt
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Core data processing
+# ---------------------------------------------------------------------------
+pandas>=2.0.0          # DataFrame operations, CSV reading, Parquet I/O
+numpy>=1.24.0          # Vectorised numeric operations (np.where, np.select)
+pyarrow>=14.0.0        # Parquet read/write engine used by pandas
+
+# ---------------------------------------------------------------------------
+# Analytical database
+# ---------------------------------------------------------------------------
+duckdb>=0.10.0         # Embedded columnar OLAP engine for the gold layer
+
+# ---------------------------------------------------------------------------
+# Configuration and utilities
+# ---------------------------------------------------------------------------
+pyyaml>=6.0            # YAML parsing for config.yaml and schema.yaml

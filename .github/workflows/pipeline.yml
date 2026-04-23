@@ -1,0 +1,60 @@
+# =============================================================================
+# .github/workflows/pipeline.yml
+# Scheduled pipeline execution workflow.
+#
+# Runs the full ETL pipeline on a daily schedule and on manual trigger,
+# demonstrating that the pipeline can be operated without human intervention.
+# In a production deployment this would trigger against a cloud data source;
+# here it runs against the bronze CSV file committed to the repository.
+# =============================================================================
+
+name: Pipeline — Daily ETL Run   # Workflow name shown in the GitHub Actions UI
+
+on:
+  schedule:
+    - cron: "0 6 * * *"          # Run every day at 06:00 UTC (before business hours)
+  workflow_dispatch:              # Also allow manual trigger from the GitHub Actions UI
+
+jobs:
+  run-pipeline:
+    name: Run full ETL pipeline
+    runs-on: ubuntu-latest        # Latest Ubuntu GitHub-hosted runner
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4   # Check out the latest code on the default branch
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('requirements*.txt') }}
+          restore-keys: pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip    # Upgrade pip before installing
+          pip install -r requirements.txt        # Production dependencies only
+
+      - name: Run pipeline
+        run: python orchestration/pipeline.py    # Execute the full ETL pipeline
+
+      - name: Upload pipeline logs
+        if: always()                             # Upload logs even if the pipeline fails
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-logs-${{ github.run_number }}   # Unique name per run
+          path: logs/pipeline.log                         # The JSON log file to upload
+          if-no-files-found: warn                         # Warn (not error) if log is missing
+
+      - name: Upload gold outputs
+        if: success()                            # Only upload outputs on a successful run
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold-outputs-${{ github.run_number }}
+          path: data/gold/                       # Upload all gold Parquet files

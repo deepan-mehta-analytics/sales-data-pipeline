@@ -1,0 +1,84 @@
+# =============================================================================
+# config/config.yaml
+# Central configuration file for the Superstore Sales Data Pipeline.
+# All file paths, database settings, pipeline behaviour, and logging options
+# are defined here so that no magic strings are buried inside Python files.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Project metadata – displayed in logs and the pipeline summary report
+# ---------------------------------------------------------------------------
+project:
+  name: "sales-data-pipeline"      # Human-readable project identifier
+  version: "1.0.0"                  # Semantic version of this pipeline release
+  description: "End-to-end ETL pipeline for the Kaggle Superstore Sales dataset"
+
+# ---------------------------------------------------------------------------
+# File paths
+# All paths are relative to the project root directory so they work whether
+# the project is run locally, inside Docker, or via GitHub Actions.
+# ---------------------------------------------------------------------------
+paths:
+  # Bronze layer – raw, immutable copy of the source CSV
+  bronze: "data/bronze/sales_data.csv"
+
+  # Silver layer – cleaned and validated data stored as Parquet
+  silver: "data/silver/cleaned_sales.parquet"
+
+  # Gold layer – business-ready aggregated tables stored as Parquet
+  gold:
+    sales_by_region:    "data/gold/sales_by_region.parquet"     # Regional performance summary
+    sales_by_category:  "data/gold/sales_by_category.parquet"   # Category & sub-category metrics
+    customer_segments:  "data/gold/customer_segments.parquet"   # Segment-level KPIs
+    monthly_trends:     "data/gold/monthly_trends.parquet"      # Monthly time-series aggregation
+    product_performance:"data/gold/product_performance.parquet" # Top/bottom product metrics
+
+  # Analytical store – embedded DuckDB database file
+  database: "database/superstore.duckdb"
+
+  # Log file – JSON-structured logs appended on every pipeline run
+  logs: "logs/pipeline.log"
+
+# ---------------------------------------------------------------------------
+# Source data properties – describes the raw CSV characteristics
+# ---------------------------------------------------------------------------
+source:
+  encoding: "latin-1"         # Superstore CSV uses Windows-1252 / latin-1 encoding
+  separator: ","               # Column delimiter character
+  date_format: "%m/%d/%Y"      # Date format used in Order Date and Ship Date columns
+  decimal: "."                 # Decimal separator for numeric columns
+
+# ---------------------------------------------------------------------------
+# Pipeline execution settings
+# ---------------------------------------------------------------------------
+pipeline:
+  # Whether to abort the entire run if any data-quality check fails
+  fail_on_quality_error: true
+
+  # Number of retry attempts for file I/O operations before raising
+  max_retries: 3
+
+  # Minimum acceptable row count after cleaning; fewer rows triggers a warning
+  min_rows_threshold: 100
+
+# ---------------------------------------------------------------------------
+# DuckDB analytical store settings
+# ---------------------------------------------------------------------------
+database:
+  # Name of the main fact table loaded into DuckDB from the silver layer
+  fact_table: "fact_sales"
+
+  # Names of the gold-layer aggregation tables created inside DuckDB
+  agg_tables:
+    - "agg_sales_by_region"
+    - "agg_sales_by_category"
+    - "agg_customer_segments"
+    - "agg_monthly_trends"
+    - "agg_product_performance"
+
+# ---------------------------------------------------------------------------
+# Logging settings
+# ---------------------------------------------------------------------------
+logging:
+  level: "INFO"     # Log level: DEBUG | INFO | WARNING | ERROR | CRITICAL
+  format: "json"    # Log format: only 'json' is currently supported

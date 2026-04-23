@@ -1,0 +1,149 @@
+# =============================================================================
+# config/schema.yaml
+# Defines the expected schema for the Superstore Sales dataset.
+# Used by the extractor (dtype enforcement) and the quality validators
+# (null checks, value-range checks, and referential integrity checks).
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Column definitions
+# Each entry maps the exact CSV column name to its expected Python / Pandas
+# dtype and a human-readable description used in the data dictionary.
+# ---------------------------------------------------------------------------
+columns:
+
+  Row ID:
+    dtype: "int64"                          # Unique sequential row number (integer)
+    nullable: false                          # Must never be null
+    description: "Unique identifier for each row in the dataset"
+
+  Order ID:
+    dtype: "object"                         # Alphanumeric order reference (string)
+    nullable: false                          # Every transaction must have an order ID
+    description: "Unique identifier for a customer order (may span multiple rows)"
+
+  Order Date:
+    dtype: "object"                         # Loaded as string; parsed to datetime in cleaner
+    nullable: false                          # Every transaction must have an order date
+    description: "Date the customer placed the order (MM/DD/YYYY)"
+
+  Ship Date:
+    dtype: "object"                         # Loaded as string; parsed to datetime in cleaner
+    nullable: false                          # Every transaction must have a ship date
+    description: "Date the order was dispatched (MM/DD/YYYY)"
+
+  Ship Mode:
+    dtype: "object"                         # Categorical string (see allowed_values)
+    nullable: false                          # Shipping mode must always be specified
+    allowed_values:                          # Exhaustive list of valid shipping modes
+      - "Second Class"
+      - "Standard Class"
+      - "First Class"
+      - "Same Day"
+    description: "Shipping service tier selected for the order"
+
+  Customer ID:
+    dtype: "object"                         # Alphanumeric customer reference (string)
+    nullable: false                          # Must be present for every transaction
+    description: "Unique identifier for each customer"
+
+  Customer Name:
+    dtype: "object"                         # Full name as a string
+    nullable: false                          # Customer name must always be provided
+    description: "Full name of the customer who placed the order"
+
+  Segment:
+    dtype: "object"                         # Categorical string (see allowed_values)
+    nullable: false                          # Business segment must always be specified
+    allowed_values:                          # Exhaustive list of valid customer segments
+      - "Consumer"
+      - "Corporate"
+      - "Home Office"
+    description: "Market segment the customer belongs to"
+
+  Postal Code:
+    dtype: "object"                         # Kept as string to preserve leading zeros
+    nullable: true                           # A small number of rows may lack postal codes
+    description: "Delivery postal/ZIP code"
+
+  City:
+    dtype: "object"                         # City name as a string
+    nullable: false                          # Delivery city must always be present
+    description: "City where the order was delivered"
+
+  State:
+    dtype: "object"                         # US state name as a string
+    nullable: false                          # State must always be present
+    description: "US state where the order was delivered"
+
+  Country:
+    dtype: "object"                         # Country name as a string
+    nullable: false                          # Country must always be present
+    description: "Country where the order was delivered"
+
+  Region:
+    dtype: "object"                         # Categorical string (see allowed_values)
+    nullable: false                          # Region must always be specified
+    allowed_values:                          # Exhaustive list of valid sales regions
+      - "East"
+      - "West"
+      - "Central"
+      - "South"
+    description: "US sales region where the order was placed"
+
+  Product ID:
+    dtype: "object"                         # Alphanumeric product reference (string)
+    nullable: false                          # Product ID must always be present
+    description: "Unique identifier for each product in the catalogue"
+
+  Category:
+    dtype: "object"                         # Categorical string (see allowed_values)
+    nullable: false                          # Product category must always be specified
+    allowed_values:                          # Exhaustive list of valid product categories
+      - "Furniture"
+      - "Office Supplies"
+      - "Technology"
+    description: "Top-level product category"
+
+  Sub-Category:
+    dtype: "object"                         # Sub-category name as a string
+    nullable: false                          # Sub-category must always be present
+    description: "Second-level product classification within the category"
+
+  Product Name:
+    dtype: "object"                         # Full product name as a string
+    nullable: false                          # Product name must always be present
+    description: "Full descriptive name of the product sold"
+
+  Sales:
+    dtype: "float64"                        # Revenue in USD (two decimal places)
+    nullable: false                          # Sales value must always be present
+    min_value: 0.0                           # Sales cannot be negative
+    description: "Total sale amount for the line item in USD"
+
+  Quantity:
+    dtype: "int64"                          # Whole number of units sold
+    nullable: false                          # Quantity must always be present
+    min_value: 1                             # At least one unit must be sold per row
+    description: "Number of product units included in this line item"
+
+  Discount:
+    dtype: "float64"                        # Fractional discount rate (0.0 to 1.0)
+    nullable: false                          # Discount must always be specified (0 if none)
+    min_value: 0.0                           # Discount cannot be negative
+    max_value: 1.0                           # Discount cannot exceed 100 %
+    description: "Fractional discount applied to the line item (0 = none, 1 = 100 %)"
+
+  Profit:
+    dtype: "float64"                        # Net profit in USD (can be negative)
+    nullable: false                          # Profit must always be present
+    description: "Net profit or loss generated by this line item in USD"
+
+# ---------------------------------------------------------------------------
+# Cross-column business rules validated in validators.py
+# ---------------------------------------------------------------------------
+rules:
+  ship_after_order: true          # Ship Date must be >= Order Date for every row
+  positive_quantity: true         # Quantity must be >= 1 for every row
+  sales_non_negative: true        # Sales must be >= 0.0 for every row
+  discount_in_range: true         # Discount must be between 0.0 and 1.0 inclusive

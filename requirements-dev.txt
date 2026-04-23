@@ -1,0 +1,32 @@
+# =============================================================================
+# requirements-dev.txt
+# Development, testing, and code-quality dependencies.
+# Not installed in production or Docker runtime images.
+#
+# Install with:  pip install -r requirements-dev.txt
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Testing
+# ---------------------------------------------------------------------------
+pytest>=7.4.0          # Test discovery, fixtures, parametrize, and reporting
+pytest-cov>=4.1.0      # Coverage measurement plugin for pytest
+
+# ---------------------------------------------------------------------------
+# Code quality — formatting and linting
+# ---------------------------------------------------------------------------
+black>=23.0.0          # Opinionated code formatter (PEP 8 + consistency)
+isort>=5.12.0          # Automatic import statement sorting
+flake8>=6.1.0          # PEP 8 linter and style checker
+
+# ---------------------------------------------------------------------------
+# Git hooks
+# ---------------------------------------------------------------------------
+pre-commit>=3.4.0      # Runs black/isort/flake8 automatically before each commit
+
+# ---------------------------------------------------------------------------
+# Notebook support (optional — for running eda.ipynb locally)
+# ---------------------------------------------------------------------------
+jupyter>=1.0.0         # Jupyter Notebook server
+matplotlib>=3.7.0      # Plotting library used in EDA notebook
+seaborn>=0.12.0        # Statistical visualisation built on matplotlib

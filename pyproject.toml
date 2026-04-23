@@ -1,0 +1,141 @@
+# =============================================================================
+# pyproject.toml
+# Modern Python project configuration (PEP 517/518).
+# Replaces the older setup.py / setup.cfg pattern.
+#
+# This file serves three purposes:
+#   1. Declares the project as an installable Python package (pip install -e .)
+#   2. Configures code-quality tools: black, isort, pytest, coverage, flake8
+#   3. Makes 'from src...' imports work correctly in both the pipeline and tests
+# =============================================================================
+
+[build-system]
+# Use setuptools as the build backend.
+# setuptools + wheel is the standard combination for pure-Python packages.
+requires      = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+
+[project]
+# ---------------------------------------------------------------------------
+# Project metadata — displayed on PyPI and in pip show output
+# ---------------------------------------------------------------------------
+name        = "sales-data-pipeline"    # Package name used by pip
+version     = "1.0.0"                  # Semantic version: MAJOR.MINOR.PATCH
+description = "End-to-end ETL pipeline for the Kaggle Superstore Sales dataset"
+readme      = "README.md"              # Long description loaded from the README
+requires-python = ">=3.10"             # Minimum Python version supported
+
+# Project classifiers help users discover the package on PyPI
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+# Runtime dependencies (same as requirements.txt — single source of truth)
+dependencies = [
+    "pandas>=2.0.0",        # Core data manipulation
+    "pyarrow>=14.0.0",      # Parquet read/write engine for pandas
+    "duckdb>=0.10.0",       # Embedded OLAP analytical database
+    "pyyaml>=6.0",          # YAML config file parsing
+    "numpy>=1.24.0",        # Numerical operations (np.where, np.select)
+]
+
+[project.optional-dependencies]
+# Development-only dependencies (same as requirements-dev.txt)
+dev = [
+    "pytest>=7.4.0",            # Test framework
+    "pytest-cov>=4.1.0",        # Coverage plugin for pytest
+    "black>=23.0.0",            # Code formatter
+    "isort>=5.12.0",            # Import sorter
+    "flake8>=6.1.0",            # Linter
+    "pre-commit>=3.4.0",        # Git hook runner
+]
+
+
+[tool.setuptools.packages.find]
+# Tell setuptools which directories contain Python packages to install.
+# "src" and "orchestration" are both importable after `pip install -e .`
+where   = ["."]                # Search from the project root
+include = ["src*", "orchestration*", "tests*"]   # Include all sub-packages
+
+
+# =============================================================================
+# black — opinionated code formatter
+# =============================================================================
+[tool.black]
+line-length    = 120          # Maximum line length (matches flake8 setting)
+target-version = ["py310", "py311"]   # Format for these Python versions
+include        = '\.pyi?$'    # Format .py and .pyi files
+exclude        = '''
+/(
+    \.git
+  | \.venv
+  | __pycache__
+  | \.eggs
+  | \.pytest_cache
+  | build
+  | dist
+)/
+'''
+
+
+# =============================================================================
+# isort — import statement sorter
+# Compatible with black (profile = "black" prevents conflicts)
+# =============================================================================
+[tool.isort]
+profile         = "black"     # Use black-compatible import sorting style
+line_length     = 120         # Match black's line length
+known_first_party = ["src", "orchestration", "tests"]   # Treat these as first-party imports
+
+
+# =============================================================================
+# pytest — test framework configuration
+# =============================================================================
+[tool.pytest.ini_options]
+# Root directory pytest uses to discover tests and conftest.py files
+testpaths    = ["tests"]      # Look for tests only inside the tests/ directory
+
+# Minimum pytest version required (prevents running on incompatible versions)
+minversion   = "7.0"
+
+# Add the project root to sys.path automatically so 'from src...' imports work
+# in tests without needing to install the package first.
+pythonpath   = ["."]
+
+# Default command-line options applied to every pytest run
+addopts      = [
+    "-v",                     # Verbose: show each test name as it runs
+    "--tb=short",             # Short traceback format (easier to read than full)
+    "--strict-markers",       # Fail if any test uses an undeclared marker
+]
+
+# Custom markers registered to avoid PytestUnknownMarkWarning
+markers = [
+    "unit: fast, isolated unit tests with no I/O",
+    "integration: slower tests that perform real file and database I/O",
+    "slow: tests that take more than 5 seconds to complete",
+]
+
+
+# =============================================================================
+# coverage — code coverage configuration
+# =============================================================================
+[tool.coverage.run]
+source   = ["src"]            # Measure coverage for the src/ package only
+omit     = [                  # Exclude files that do not need coverage measurement
+    "*/tests/*",
+    "*/__init__.py",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+# Fail the coverage check if total coverage falls below this threshold
+fail_under   = 70             # Require at least 70 % code coverage
+show_missing = true           # Show line numbers of uncovered code in the report
+skip_empty   = true           # Skip files with 0 % coverage from the report
