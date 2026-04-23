@@ -17,10 +17,17 @@
 
 import sys  # Used to exit with a non-zero code on failure
 import time  # Measures elapsed time for each pipeline stage
+import yaml  # Reads config.yaml for quality-gate settings
 from datetime import datetime, timezone  # Generates an ISO-8601 run timestamp
 from pathlib import Path  # Cross-platform path resolution
 
-import yaml  # Reads config.yaml for quality-gate settings
+# Import all pipeline stages and the quality validator.
+from src.extract.extractor import extract  # Bronze-layer CSV ingestion
+from src.load.loader import load  # Gold-layer loading
+from src.quality.validators import run_quality_checks  # Data quality validation
+from src.transform.cleaner import clean  # Silver-layer data cleaning
+from src.transform.feature_engineer import engineer  # Feature engineering
+from src.utils.logger import get_logger  # Centralised JSON logger
 
 # ---------------------------------------------------------------------------
 # Add the project root to sys.path so that 'from src...' imports work when
@@ -30,14 +37,6 @@ import yaml  # Reads config.yaml for quality-gate settings
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent  # orchestration → project root
 sys.path.insert(0, str(PROJECT_ROOT))  # Prepend to sys.path
-
-# Import all pipeline stages and the quality validator.
-from src.extract.extractor import extract  # Bronze-layer CSV ingestion
-from src.load.loader import load  # Gold-layer loading
-from src.quality.validators import run_quality_checks  # Data quality validation
-from src.transform.cleaner import clean  # Silver-layer data cleaning
-from src.transform.feature_engineer import engineer  # Feature engineering
-from src.utils.logger import get_logger  # Centralised JSON logger
 
 # Obtain a logger named after the orchestration module.
 logger = get_logger("orchestration.pipeline")
@@ -87,7 +86,7 @@ def _run_stage(stage_name: str, func, *args, **kwargs):
 
     try:
         result = func(*args, **kwargs)  # Execute the actual pipeline function
-    except Exception as exc:
+    except Exception:
         elapsed = time.perf_counter() - t_start  # Measure time even on failure
         logger.error(  # Log the failure with the exception detail
             f"Stage failed: {stage_name}",

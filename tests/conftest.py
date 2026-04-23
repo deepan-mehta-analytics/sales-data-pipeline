@@ -19,7 +19,7 @@
 
 from pathlib import Path  # Path manipulation for tmp_path-based file fixtures
 
-import numpy as np  # Not used directly but available if tests need it
+# import numpy as np  # Not used directly but available if tests need it
 import pandas as pd  # DataFrame creation for fixtures
 import pytest  # pytest test framework
 import yaml  # Used to build config fixtures
