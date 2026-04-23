@@ -3,14 +3,12 @@
 # Unit tests for src/transform/feature_engineer.py.
 # =============================================================================
 
-import pandas as pd                            # DataFrame creation and assertions
+import pandas as pd  # DataFrame creation and assertions
 
-from src.transform.feature_engineer import (
-    add_time_features,                         # Temporal KPI columns
-    add_financial_features,                    # Margin and per-unit columns
-    add_categorical_features,                  # Profit tier and shipping speed buckets
-    engineer,                                  # Public entry point
-)
+from src.transform.feature_engineer import add_categorical_features  # Profit tier and shipping speed buckets
+from src.transform.feature_engineer import add_financial_features  # Margin and per-unit columns
+from src.transform.feature_engineer import add_time_features  # Temporal KPI columns
+from src.transform.feature_engineer import engineer  # Public entry point
 
 
 class TestAddTimeFeatures:
@@ -34,17 +32,13 @@ class TestAddTimeFeatures:
         """order_quarter must be between 1 and 4 inclusive."""
         result = add_time_features(cleaned_df)
 
-        assert result["order_quarter"].between(1, 4).all(), (
-            "All order_quarter values must be between 1 and 4"
-        )
+        assert result["order_quarter"].between(1, 4).all(), "All order_quarter values must be between 1 and 4"
 
     def test_shipping_days_non_negative(self, cleaned_df):
         """shipping_days must be >= 0 for every row (Ship Date >= Order Date)."""
         result = add_time_features(cleaned_df)
 
-        assert (result["shipping_days"] >= 0).all(), (
-            "shipping_days must be non-negative"
-        )
+        assert (result["shipping_days"] >= 0).all(), "shipping_days must be non-negative"
 
     def test_shipping_days_correct(self, cleaned_df):
         """
@@ -58,11 +52,9 @@ class TestAddTimeFeatures:
     def test_input_not_mutated(self, cleaned_df):
         """add_time_features must return a copy and not mutate the input."""
         cols_before = set(cleaned_df.columns)
-        add_time_features(cleaned_df)                                          # Call the function
+        add_time_features(cleaned_df)  # Call the function
 
-        assert set(cleaned_df.columns) == cols_before, (
-            "add_time_features must not add columns to the input DataFrame"
-        )
+        assert set(cleaned_df.columns) == cols_before, "add_time_features must not add columns to the input DataFrame"
 
 
 class TestAddFinancialFeatures:
@@ -76,23 +68,23 @@ class TestAddFinancialFeatures:
         expected_margin = round((41.91 / 261.96) * 100, 2)
         actual_margin = result["profit_margin_pct"].iloc[0]
 
-        assert abs(actual_margin - expected_margin) < 0.1, (
-            f"Expected profit_margin_pct ≈ {expected_margin}, got {actual_margin}"
-        )
+        assert (
+            abs(actual_margin - expected_margin) < 0.1
+        ), f"Expected profit_margin_pct ≈ {expected_margin}, got {actual_margin}"
 
     def test_zero_sales_gives_zero_margin(self):
         """A row with Sales=0 must produce profit_margin_pct=0 (no division by zero)."""
-        df = pd.DataFrame({
-            "Sales": [0.0],                                                    # Zero sales — tests division guard
-            "Profit": [10.0],                                                  # Non-zero profit
-            "Quantity": [1],
-            "Discount": [0.0],
-        })
+        df = pd.DataFrame(
+            {
+                "Sales": [0.0],  # Zero sales — tests division guard
+                "Profit": [10.0],  # Non-zero profit
+                "Quantity": [1],
+                "Discount": [0.0],
+            }
+        )
         result = add_financial_features(df)
 
-        assert result["profit_margin_pct"].iloc[0] == 0.0, (
-            "profit_margin_pct must be 0.0 when Sales is 0"
-        )
+        assert result["profit_margin_pct"].iloc[0] == 0.0, "profit_margin_pct must be 0.0 when Sales is 0"
 
     def test_is_profitable_flag(self, cleaned_df):
         """is_profitable must be True for rows with positive Profit."""
@@ -103,24 +95,18 @@ class TestAddFinancialFeatures:
 
     def test_negative_profit_not_profitable(self):
         """is_profitable must be False for rows with negative Profit."""
-        df = pd.DataFrame({
-            "Sales": [100.0], "Profit": [-20.0], "Quantity": [1], "Discount": [0.5]
-        })
+        df = pd.DataFrame({"Sales": [100.0], "Profit": [-20.0], "Quantity": [1], "Discount": [0.5]})
         result = add_financial_features(df)
 
         # Using 'not' is idiomatic — avoids flake8 E712 boolean-equality warning.
-        assert not result["is_profitable"].iloc[0], (
-            "is_profitable must be False when Profit < 0"
-        )
+        assert not result["is_profitable"].iloc[0], "is_profitable must be False when Profit < 0"
 
     def test_discount_amount_computed(self, cleaned_df):
         """discount_amount must equal Sales * Discount."""
         result = add_financial_features(cleaned_df)
 
         expected = (cleaned_df["Sales"] * cleaned_df["Discount"]).round(2)
-        pd.testing.assert_series_equal(
-            result["discount_amount"], expected, check_names=False, rtol=0.01
-        )
+        pd.testing.assert_series_equal(result["discount_amount"], expected, check_names=False, rtol=0.01)
 
 
 class TestAddCategoricalFeatures:
@@ -128,40 +114,48 @@ class TestAddCategoricalFeatures:
 
     def test_profit_tier_loss(self):
         """A row with negative profit_margin_pct must get profit_tier='Loss'."""
-        df = pd.DataFrame({
-            "profit_margin_pct": [-15.0],                                      # Negative margin → Loss tier
-            "shipping_days": [3],
-        })
+        df = pd.DataFrame(
+            {
+                "profit_margin_pct": [-15.0],  # Negative margin → Loss tier
+                "shipping_days": [3],
+            }
+        )
         result = add_categorical_features(df)
 
         assert result["profit_tier"].iloc[0] == "Loss"
 
     def test_profit_tier_high(self):
         """A row with profit_margin_pct >= 20 must get profit_tier='High'."""
-        df = pd.DataFrame({
-            "profit_margin_pct": [25.0],                                       # 25 % margin → High tier
-            "shipping_days": [3],
-        })
+        df = pd.DataFrame(
+            {
+                "profit_margin_pct": [25.0],  # 25 % margin → High tier
+                "shipping_days": [3],
+            }
+        )
         result = add_categorical_features(df)
 
         assert result["profit_tier"].iloc[0] == "High"
 
     def test_shipping_speed_express(self):
         """shipping_days of 2 must produce shipping_speed='Express'."""
-        df = pd.DataFrame({
-            "profit_margin_pct": [10.0],
-            "shipping_days": [2],                                              # 2-day shipping → Express
-        })
+        df = pd.DataFrame(
+            {
+                "profit_margin_pct": [10.0],
+                "shipping_days": [2],  # 2-day shipping → Express
+            }
+        )
         result = add_categorical_features(df)
 
         assert result["shipping_speed"].iloc[0] == "Express"
 
     def test_shipping_speed_same_day(self):
         """shipping_days of 0 or 1 must produce shipping_speed='Same Day'."""
-        df = pd.DataFrame({
-            "profit_margin_pct": [10.0],
-            "shipping_days": [0],                                              # Same-day delivery
-        })
+        df = pd.DataFrame(
+            {
+                "profit_margin_pct": [10.0],
+                "shipping_days": [0],  # Same-day delivery
+            }
+        )
         result = add_categorical_features(df)
 
         assert result["shipping_speed"].iloc[0] == "Same Day"
@@ -183,9 +177,13 @@ class TestEngineer:
         enriched, meta = engineer(cleaned_df)
 
         expected_new_cols = {
-            "order_year", "order_month", "shipping_days",
-            "profit_margin_pct", "is_profitable",
-            "profit_tier", "shipping_speed",
+            "order_year",
+            "order_month",
+            "shipping_days",
+            "profit_margin_pct",
+            "is_profitable",
+            "profit_tier",
+            "shipping_speed",
         }
         actual_new_cols = set(enriched.columns) - set(cleaned_df.columns)
 
@@ -196,9 +194,7 @@ class TestEngineer:
         """Feature engineering must not add or remove rows."""
         enriched, _ = engineer(cleaned_df)
 
-        assert len(enriched) == len(cleaned_df), (
-            "engineer() must not change the number of rows"
-        )
+        assert len(enriched) == len(cleaned_df), "engineer() must not change the number of rows"
 
     def test_metadata_new_features_list(self, cleaned_df):
         """The metadata dict must list the names of newly added columns."""

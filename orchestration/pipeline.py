@@ -17,9 +17,10 @@
 
 import sys  # Used to exit with a non-zero code on failure
 import time  # Measures elapsed time for each pipeline stage
-import yaml  # Reads config.yaml for quality-gate settings
 from datetime import datetime, timezone  # Generates an ISO-8601 run timestamp
 from pathlib import Path  # Cross-platform path resolution
+
+import yaml  # Reads config.yaml for quality-gate settings
 
 # Import all pipeline stages and the quality validator.
 from src.extract.extractor import extract  # Bronze-layer CSV ingestion
