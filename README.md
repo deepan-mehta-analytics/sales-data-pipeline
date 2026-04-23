@@ -1,5 +1,10 @@
 # 🛢️ Superstore Sales Data Pipeline
 
+## ⚡ Quick Summary
+This project builds a production-style sales data pipeline that transforms raw CSV data into clean, analytics-ready datasets using a layered (Bronze → Silver → Gold) architecture. 
+
+It automates data cleaning, validation, feature engineering, and aggregation, and stores results in both Parquet and DuckDB for fast analytical querying.
+
 ### End-to-End ETL Pipeline with Medallion Architecture, DuckDB & GitHub Actions CI/CD
 
 ---
@@ -16,8 +21,9 @@
 ---
 
 ## 📌 Project Overview
+This project implements a **production-grade end to end ETL pipeline** that transforms raw sales data into validated, analytics-ready datasets using a modern layered architecture.
 
-This project builds a **production-grade, end-to-end ETL data pipeline** for the [Kaggle Superstore Sales Dataset](https://www.kaggle.com/datasets/vivek468/superstore-dataset-final), demonstrating core Data Engineering patterns used in modern data platforms.
+it uses the [Kaggle Superstore Sales Dataset](https://www.kaggle.com/datasets/vivek468/superstore-dataset-final), demonstrating core Data Engineering patterns used in modern data platforms.
 
 It implements:
 
