@@ -9,22 +9,21 @@
 # any pipeline code.
 # =============================================================================
 
-import logging          # Python standard-library logging framework
-import json             # Serialises log records to compact JSON strings
-import sys              # Provides the stdout stream for the console handler
-import os               # Creates the logs/ directory when it does not yet exist
+import logging  # Python standard-library logging framework
+import json  # Serialises log records to compact JSON strings
+import sys  # Provides the stdout stream for the console handler
+import os  # Creates the logs/ directory when it does not yet exist
 from datetime import datetime, timezone  # Generates ISO-8601 UTC timestamps
-import yaml             # Reads logging settings from config.yaml
+import yaml  # Reads logging settings from config.yaml
 from pathlib import Path  # Cross-platform path resolution
-
 
 # ---------------------------------------------------------------------------
 # Project root and config path
 # Resolving paths relative to this file makes the module location-agnostic;
 # it works whether executed from the project root, src/, or inside Docker.
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parents[2]   # Two levels up: utils → src → project root
-CONFIG_PATH  = PROJECT_ROOT / "config" / "config.yaml"   # Absolute path to the YAML config
+PROJECT_ROOT = Path(__file__).resolve().parents[2]  # Two levels up: utils → src → project root
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"  # Absolute path to the YAML config
 
 
 def _load_config() -> dict:
@@ -33,8 +32,8 @@ def _load_config() -> dict:
     Called once per get_logger() invocation; result is not cached because
     the function is called infrequently and we want live config reads.
     """
-    with open(CONFIG_PATH, "r", encoding="utf-8") as fh:   # Open config in read-only mode
-        return yaml.safe_load(fh)                            # Parse YAML safely (no arbitrary code execution)
+    with open(CONFIG_PATH, "r", encoding="utf-8") as fh:  # Open config in read-only mode
+        return yaml.safe_load(fh)  # Parse YAML safely (no arbitrary code execution)
 
 
 # =============================================================================
@@ -43,6 +42,7 @@ def _load_config() -> dict:
 # JSON object.  JSON logs are easy to ingest into Elastic, Splunk, Datadog,
 # CloudWatch, or any log aggregation platform.
 # =============================================================================
+
 
 class JsonFormatter(logging.Formatter):
     """Emit each log record as a compact, single-line JSON string."""
@@ -67,18 +67,18 @@ class JsonFormatter(logging.Formatter):
 
         # Build the core payload; every log line contains these fields.
         payload = {
-            "timestamp": ts,                # ISO-8601 datetime in UTC (e.g. "2024-01-15T10:30:00+00:00")
-            "level":     record.levelname,  # Severity string: DEBUG / INFO / WARNING / ERROR / CRITICAL
-            "logger":    record.name,       # Logger name passed to get_logger() (e.g. "src.extract.extractor")
-            "module":    record.module,     # Python module filename without .py extension
-            "function":  record.funcName,   # Name of the function that called the logger
-            "line":      record.lineno,     # Source line number that emitted the log
-            "message":   record.getMessage(),  # The formatted message string (handles % args)
+            "timestamp": ts,  # ISO-8601 datetime in UTC (e.g. "2024-01-15T10:30:00+00:00")
+            "level": record.levelname,  # Severity string: DEBUG / INFO / WARNING / ERROR / CRITICAL
+            "logger": record.name,  # Logger name passed to get_logger() (e.g. "src.extract.extractor")
+            "module": record.module,  # Python module filename without .py extension
+            "function": record.funcName,  # Name of the function that called the logger
+            "line": record.lineno,  # Source line number that emitted the log
+            "message": record.getMessage(),  # The formatted message string (handles % args)
         }
 
         # If an exception was captured (e.g. logger.exception(...)), append the traceback.
         if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)   # Multi-line traceback string
+            payload["exception"] = self.formatException(record.exc_info)  # Multi-line traceback string
 
         # Serialise to compact JSON (no indentation) with consistent key ordering.
         return json.dumps(payload, ensure_ascii=False, default=str)
@@ -90,6 +90,7 @@ class JsonFormatter(logging.Formatter):
 # call get_logger(__name__) at module level so the logger is ready before
 # any pipeline function is invoked.
 # =============================================================================
+
 
 def get_logger(name: str) -> logging.Logger:
     """
@@ -111,7 +112,7 @@ def get_logger(name: str) -> logging.Logger:
     logging.Logger
         A fully configured logger instance ready to emit JSON log lines.
     """
-    config = _load_config()   # Read current config.yaml values
+    config = _load_config()  # Read current config.yaml values
 
     # Extract the desired log level string; fall back to INFO if not set.
     level_str = config.get("logging", {}).get("level", "INFO").upper()
@@ -136,9 +137,9 @@ def get_logger(name: str) -> logging.Logger:
     # Writes JSON log lines to stdout so Docker / GitHub Actions can capture
     # them without reading a file.
     # -----------------------------------------------------------------------
-    console_handler = logging.StreamHandler(sys.stdout)   # Attach the handler to stdout
-    console_handler.setLevel(level)                        # Apply the configured severity threshold
-    console_handler.setFormatter(JsonFormatter())          # Format records as JSON
+    console_handler = logging.StreamHandler(sys.stdout)  # Attach the handler to stdout
+    console_handler.setLevel(level)  # Apply the configured severity threshold
+    console_handler.setFormatter(JsonFormatter())  # Format records as JSON
 
     # -----------------------------------------------------------------------
     # File handler
@@ -154,8 +155,8 @@ def get_logger(name: str) -> logging.Logger:
 
     # Open the log file in append mode so previous runs are never overwritten.
     file_handler = logging.FileHandler(str(log_file), mode="a", encoding="utf-8")
-    file_handler.setLevel(level)                           # Same severity threshold as console
-    file_handler.setFormatter(JsonFormatter())             # Same JSON format as console
+    file_handler.setLevel(level)  # Same severity threshold as console
+    file_handler.setFormatter(JsonFormatter())  # Same JSON format as console
 
     # Register both handlers with the logger.
     logger.addHandler(console_handler)
@@ -166,4 +167,4 @@ def get_logger(name: str) -> logging.Logger:
     # has a handler (e.g. basicConfig was called elsewhere).
     logger.propagate = False
 
-    return logger   # Return the fully configured logger to the caller
+    return logger  # Return the fully configured logger to the caller

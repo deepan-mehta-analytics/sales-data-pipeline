@@ -12,15 +12,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.quality.validators import (
-    check_schema,           # Validates column presence
-    check_nulls,            # Validates mandatory columns have no nulls
-    check_value_ranges,     # Validates numeric bounds
-    check_allowed_values,   # Validates categorical value sets
-    check_ship_after_order, # Validates Ship Date >= Order Date
-    check_duplicate_rows,   # Detects fully-duplicated rows
-    run_quality_checks,     # Runs all checks and returns a QualityReport
-    ValidationResult,       # Result container
-    QualityReport,          # Aggregated report container
+    check_schema,  # Validates column presence
+    check_nulls,  # Validates mandatory columns have no nulls
+    check_value_ranges,  # Validates numeric bounds
+    check_allowed_values,  # Validates categorical value sets
+    check_ship_after_order,  # Validates Ship Date >= Order Date
+    check_duplicate_rows,  # Detects fully-duplicated rows
+    run_quality_checks,  # Runs all checks and returns a QualityReport
+    ValidationResult,  # Result container
+    QualityReport,  # Aggregated report container
 )
 
 
@@ -98,7 +98,7 @@ class TestCheckAllowedValues:
     def test_unknown_category_fails(self, raw_df, schema):
         """An unrecognised Category value must cause the check to fail."""
         df_bad_cat = raw_df.copy()
-        df_bad_cat.loc[0, "Category"] = "Unknown Category"   # Not in allowed_values
+        df_bad_cat.loc[0, "Category"] = "Unknown Category"  # Not in allowed_values
 
         result = check_allowed_values(df_bad_cat, schema)
 
@@ -108,7 +108,7 @@ class TestCheckAllowedValues:
     def test_unknown_region_fails(self, raw_df, schema):
         """An unrecognised Region must cause the check to fail."""
         df_bad_region = raw_df.copy()
-        df_bad_region.loc[0, "Region"] = "Narnia"   # Not a real US region
+        df_bad_region.loc[0, "Region"] = "Narnia"  # Not a real US region
 
         result = check_allowed_values(df_bad_region, schema)
 
@@ -136,7 +136,7 @@ class TestCheckShipAfterOrder:
         Running this check on a DataFrame where dates are still strings
         (not yet parsed) must return a failed result with an explanatory message.
         """
-        result = check_ship_after_order(raw_df)   # raw_df has string date columns
+        result = check_ship_after_order(raw_df)  # raw_df has string date columns
 
         assert result.passed is False
         assert "datetime" in result.details.lower()
@@ -158,7 +158,7 @@ class TestCheckDuplicateRows:
         result = check_duplicate_rows(df_with_dups)
 
         assert result.passed is False
-        assert result.failures == 2   # Two rows were duplicated
+        assert result.failures == 2  # Two rows were duplicated
 
 
 class TestRunQualityChecks:
@@ -197,8 +197,8 @@ class TestRunQualityChecks:
     def test_date_check_included_when_requested(self, cleaned_df):
         """When run_date_checks=True, total_checks must be greater than without it."""
         report_without = run_quality_checks(cleaned_df, run_date_checks=False)
-        report_with    = run_quality_checks(cleaned_df, run_date_checks=True)
+        report_with = run_quality_checks(cleaned_df, run_date_checks=True)
 
-        assert report_with.total_checks > report_without.total_checks, (
-            "run_date_checks=True should add at least one extra check"
-        )
+        assert (
+            report_with.total_checks > report_without.total_checks
+        ), "run_date_checks=True should add at least one extra check"

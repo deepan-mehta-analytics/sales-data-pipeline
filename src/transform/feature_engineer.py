@@ -28,12 +28,12 @@
 #    shipping_speed     – 'Express' (1-2 days) / 'Standard' / 'Slow'
 # =============================================================================
 
-import pandas as pd         # Core data-manipulation library
-import numpy as np          # Used for np.where / np.select conditions
-from pathlib import Path    # Cross-platform path resolution
-from typing import Tuple    # Type hint for return value
+import pandas as pd  # Core data-manipulation library
+import numpy as np  # Used for np.where / np.select conditions
+from pathlib import Path  # Cross-platform path resolution
+from typing import Tuple  # Type hint for return value
 
-from src.utils.logger import get_logger   # Centralised JSON logger
+from src.utils.logger import get_logger  # Centralised JSON logger
 
 # Obtain a module-level logger for structured output.
 logger = get_logger(__name__)
@@ -42,6 +42,7 @@ logger = get_logger(__name__)
 # =============================================================================
 # Time-based feature functions
 # =============================================================================
+
 
 def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -60,7 +61,7 @@ def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         Copy of the DataFrame with new time-based columns appended.
     """
-    df = df.copy()   # Work on a copy to avoid mutating the input
+    df = df.copy()  # Work on a copy to avoid mutating the input
 
     # Extract the 4-digit calendar year from Order Date (e.g. 2016).
     df["order_year"] = df["Order Date"].dt.year.astype("Int64")
@@ -82,18 +83,27 @@ def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     # The result is a Timedelta; .dt.days extracts the integer day count.
     df["shipping_days"] = (df["Ship Date"] - df["Order Date"]).dt.days.astype("Int64")
 
-    logger.info(   # Log the names of the new time features for the audit trail
+    logger.info(  # Log the names of the new time features for the audit trail
         "Time features added",
-        extra={"features": ["order_year", "order_month", "order_month_name",
-                            "order_quarter", "order_day_of_week", "shipping_days"]},
+        extra={
+            "features": [
+                "order_year",
+                "order_month",
+                "order_month_name",
+                "order_quarter",
+                "order_day_of_week",
+                "shipping_days",
+            ]
+        },
     )
 
-    return df   # Return the copy with new columns appended
+    return df  # Return the copy with new columns appended
 
 
 # =============================================================================
 # Financial feature functions
 # =============================================================================
+
 
 def add_financial_features(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -110,17 +120,19 @@ def add_financial_features(df: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         Copy of the DataFrame with new financial columns appended.
     """
-    df = df.copy()   # Work on a copy to avoid mutating the input
+    df = df.copy()  # Work on a copy to avoid mutating the input
 
     # profit_margin_pct: net profit as a percentage of revenue.
     # Formula: (Profit / Sales) * 100
     # np.where guards against division by zero when Sales == 0.
     # Rows where Sales == 0 receive a profit margin of 0.0 by convention.
     df["profit_margin_pct"] = np.where(
-        df["Sales"] != 0,                      # Condition: Sales is non-zero
-        (df["Profit"] / df["Sales"]) * 100,    # True branch: compute the margin
-        0.0,                                   # False branch: default to 0 when Sales is zero
-    ).round(2)   # Round to 2 decimal places for readability
+        df["Sales"] != 0,  # Condition: Sales is non-zero
+        (df["Profit"] / df["Sales"]) * 100,  # True branch: compute the margin
+        0.0,  # False branch: default to 0 when Sales is zero
+    ).round(
+        2
+    )  # Round to 2 decimal places for readability
 
     # discount_amount: the absolute dollar value of the discount applied.
     # Formula: Sales * Discount
@@ -133,36 +145,38 @@ def add_financial_features(df: pd.DataFrame) -> pd.DataFrame:
     # Formula: Sales / Quantity
     # np.where guards against division by zero when Quantity == 0.
     df["revenue_per_unit"] = np.where(
-        df["Quantity"] != 0,              # Condition: at least one unit sold
-        df["Sales"] / df["Quantity"],     # True: divide revenue by quantity
-        0.0,                              # False: default to 0 for safety
+        df["Quantity"] != 0,  # Condition: at least one unit sold
+        df["Sales"] / df["Quantity"],  # True: divide revenue by quantity
+        0.0,  # False: default to 0 for safety
     ).round(2)
 
     # profit_per_unit: average net profit (or loss) per unit sold.
     # Formula: Profit / Quantity
     # A negative value means this product is sold at a loss per unit.
     df["profit_per_unit"] = np.where(
-        df["Quantity"] != 0,              # Condition: at least one unit sold
-        df["Profit"] / df["Quantity"],    # True: divide profit by quantity
-        0.0,                              # False: default to 0 for safety
+        df["Quantity"] != 0,  # Condition: at least one unit sold
+        df["Profit"] / df["Quantity"],  # True: divide profit by quantity
+        0.0,  # False: default to 0 for safety
     ).round(2)
 
     # is_profitable: a boolean flag indicating whether this line item made money.
     # True when Profit > 0; False for break-even (Profit == 0) or losses.
     df["is_profitable"] = df["Profit"] > 0
 
-    logger.info(   # Log the financial feature names for the audit trail
+    logger.info(  # Log the financial feature names for the audit trail
         "Financial features added",
-        extra={"features": ["profit_margin_pct", "discount_amount",
-                            "revenue_per_unit", "profit_per_unit", "is_profitable"]},
+        extra={
+            "features": ["profit_margin_pct", "discount_amount", "revenue_per_unit", "profit_per_unit", "is_profitable"]
+        },
     )
 
-    return df   # Return the copy with new columns appended
+    return df  # Return the copy with new columns appended
 
 
 # =============================================================================
 # Categorical feature functions
 # =============================================================================
+
 
 def add_categorical_features(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -182,7 +196,7 @@ def add_categorical_features(df: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         Copy of the DataFrame with new categorical columns appended.
     """
-    df = df.copy()   # Work on a copy
+    df = df.copy()  # Work on a copy
 
     # -----------------------------------------------------------------------
     # profit_tier: classify each line item by its profitability level.
@@ -193,12 +207,12 @@ def add_categorical_features(df: pd.DataFrame) -> pd.DataFrame:
     #   High   – above 20 % margin (strong profitability)
     # -----------------------------------------------------------------------
     profit_conditions = [
-        df["profit_margin_pct"] < 0,                                        # Loss
-        (df["profit_margin_pct"] >= 0)  & (df["profit_margin_pct"] < 10),   # Low
-        (df["profit_margin_pct"] >= 10) & (df["profit_margin_pct"] < 20),   # Medium
-        df["profit_margin_pct"] >= 20,                                       # High
+        df["profit_margin_pct"] < 0,  # Loss
+        (df["profit_margin_pct"] >= 0) & (df["profit_margin_pct"] < 10),  # Low
+        (df["profit_margin_pct"] >= 10) & (df["profit_margin_pct"] < 20),  # Medium
+        df["profit_margin_pct"] >= 20,  # High
     ]
-    profit_labels = ["Loss", "Low", "Medium", "High"]   # Labels matching the condition order
+    profit_labels = ["Loss", "Low", "Medium", "High"]  # Labels matching the condition order
 
     # np.select applies the first matching condition's label; 'Unknown' is the default.
     df["profit_tier"] = np.select(profit_conditions, profit_labels, default="Unknown")
@@ -208,26 +222,27 @@ def add_categorical_features(df: pd.DataFrame) -> pd.DataFrame:
     # Thresholds are approximate; Same Day = 0-1, Express = 2-3, etc.
     # -----------------------------------------------------------------------
     speed_conditions = [
-        df["shipping_days"] <= 1,                                   # Same Day / Overnight
-        (df["shipping_days"] >= 2) & (df["shipping_days"] <= 3),    # Express (2-3 days)
-        (df["shipping_days"] >= 4) & (df["shipping_days"] <= 6),    # Standard (4-6 days)
-        df["shipping_days"] >= 7,                                   # Slow (1 week or more)
+        df["shipping_days"] <= 1,  # Same Day / Overnight
+        (df["shipping_days"] >= 2) & (df["shipping_days"] <= 3),  # Express (2-3 days)
+        (df["shipping_days"] >= 4) & (df["shipping_days"] <= 6),  # Standard (4-6 days)
+        df["shipping_days"] >= 7,  # Slow (1 week or more)
     ]
-    speed_labels = ["Same Day", "Express", "Standard", "Slow"]   # Labels matching conditions
+    speed_labels = ["Same Day", "Express", "Standard", "Slow"]  # Labels matching conditions
 
     df["shipping_speed"] = np.select(speed_conditions, speed_labels, default="Unknown")
 
-    logger.info(   # Log the categorical feature names
+    logger.info(  # Log the categorical feature names
         "Categorical features added",
         extra={"features": ["profit_tier", "shipping_speed"]},
     )
 
-    return df   # Return the copy with new columns appended
+    return df  # Return the copy with new columns appended
 
 
 # =============================================================================
 # engineer  –  Public entry point
 # =============================================================================
+
 
 def engineer(df: pd.DataFrame) -> Tuple[pd.DataFrame, dict]:
     """
@@ -253,30 +268,30 @@ def engineer(df: pd.DataFrame) -> Tuple[pd.DataFrame, dict]:
     """
     logger.info("Starting feature engineering step", extra={"input_rows": len(df)})
 
-    cols_before = set(df.columns)   # Record column names before engineering starts
+    cols_before = set(df.columns)  # Record column names before engineering starts
 
-    df = add_time_features(df)           # Step 1: add temporal features
-    df = add_financial_features(df)      # Step 2: add financial KPI features
-    df = add_categorical_features(df)    # Step 3: add categorical bucket features
+    df = add_time_features(df)  # Step 1: add temporal features
+    df = add_financial_features(df)  # Step 2: add financial KPI features
+    df = add_categorical_features(df)  # Step 3: add categorical bucket features
 
-    cols_after   = set(df.columns)   # Record column names after all engineering
-    new_features = sorted(cols_after - cols_before)   # List of newly added column names
+    cols_after = set(df.columns)  # Record column names after all engineering
+    new_features = sorted(cols_after - cols_before)  # List of newly added column names
 
     # Build a metadata dict summarising what was engineered.
     metadata = {
-        "rows":         len(df),            # Row count (unchanged by feature engineering)
-        "cols_before":  len(cols_before),   # Column count before engineering
-        "cols_after":   len(cols_after),    # Column count after engineering
-        "new_features": new_features,       # Names of the derived columns added
+        "rows": len(df),  # Row count (unchanged by feature engineering)
+        "cols_before": len(cols_before),  # Column count before engineering
+        "cols_after": len(cols_after),  # Column count after engineering
+        "new_features": new_features,  # Names of the derived columns added
     }
 
-    logger.info(   # Log the feature engineering summary
+    logger.info(  # Log the feature engineering summary
         "Feature engineering complete",
         extra={
-            "rows":         metadata["rows"],
-            "cols_added":   len(new_features),
+            "rows": metadata["rows"],
+            "cols_added": len(new_features),
             "new_features": new_features,
         },
     )
 
-    return df, metadata   # Return the enriched DataFrame and audit metadata
+    return df, metadata  # Return the enriched DataFrame and audit metadata

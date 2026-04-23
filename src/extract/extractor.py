@@ -14,12 +14,12 @@
 # from transformation makes the pipeline easier to debug and test.
 # =============================================================================
 
-import pandas as pd          # Core data-manipulation library
-import yaml                  # Reads config.yaml and schema.yaml
-from pathlib import Path     # Cross-platform path handling
-from typing import Tuple     # Type-hint for the (DataFrame, dict) return value
+import pandas as pd  # Core data-manipulation library
+import yaml  # Reads config.yaml and schema.yaml
+from pathlib import Path  # Cross-platform path handling
+from typing import Tuple  # Type-hint for the (DataFrame, dict) return value
 
-from src.utils.logger import get_logger   # Centralised JSON logger
+from src.utils.logger import get_logger  # Centralised JSON logger
 
 # Obtain a logger named after this module for structured log output.
 logger = get_logger(__name__)
@@ -29,9 +29,9 @@ logger = get_logger(__name__)
 # Anchored at the project root so the extractor works regardless of the
 # working directory from which the pipeline is launched.
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parents[2]   # Two levels up: extract → src → project root
-CONFIG_PATH  = PROJECT_ROOT / "config" / "config.yaml"   # Pipeline configuration file
-SCHEMA_PATH  = PROJECT_ROOT / "config" / "schema.yaml"   # Column schema definition file
+PROJECT_ROOT = Path(__file__).resolve().parents[2]  # Two levels up: extract → src → project root
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"  # Pipeline configuration file
+SCHEMA_PATH = PROJECT_ROOT / "config" / "schema.yaml"  # Column schema definition file
 
 
 # =============================================================================
@@ -39,6 +39,7 @@ SCHEMA_PATH  = PROJECT_ROOT / "config" / "schema.yaml"   # Column schema definit
 # Internal helper – loads both YAML files once so they can be reused without
 # repeated disk reads inside the public extract() function.
 # =============================================================================
+
 
 def _load_configs() -> Tuple[dict, dict]:
     """
@@ -51,13 +52,13 @@ def _load_configs() -> Tuple[dict, dict]:
     schema : dict
         Column schema definition (names, dtypes, nullability, etc.).
     """
-    with open(CONFIG_PATH, "r", encoding="utf-8") as fh:   # Open the pipeline config
-        config = yaml.safe_load(fh)                          # Parse YAML into a dict
+    with open(CONFIG_PATH, "r", encoding="utf-8") as fh:  # Open the pipeline config
+        config = yaml.safe_load(fh)  # Parse YAML into a dict
 
-    with open(SCHEMA_PATH, "r", encoding="utf-8") as fh:   # Open the schema definition
-        schema = yaml.safe_load(fh)                          # Parse YAML into a dict
+    with open(SCHEMA_PATH, "r", encoding="utf-8") as fh:  # Open the schema definition
+        schema = yaml.safe_load(fh)  # Parse YAML into a dict
 
-    return config, schema   # Return both dicts to the caller
+    return config, schema  # Return both dicts to the caller
 
 
 def _build_dtype_map(schema: dict) -> dict:
@@ -79,25 +80,25 @@ def _build_dtype_map(schema: dict) -> dict:
         Mapping of {column_name: dtype_string} suitable for pd.read_csv's
         'dtype' parameter.
     """
-    dtype_map = {}   # Initialise an empty mapping to populate in the loop below
+    dtype_map = {}  # Initialise an empty mapping to populate in the loop below
 
-    for col_name, col_def in schema["columns"].items():   # Iterate over every column definition
-        raw_dtype = col_def.get("dtype", "object")          # Get the dtype string; default to 'object' (str)
+    for col_name, col_def in schema["columns"].items():  # Iterate over every column definition
+        raw_dtype = col_def.get("dtype", "object")  # Get the dtype string; default to 'object' (str)
 
         # Date columns are loaded as plain strings here and converted to
         # datetime objects later in cleaner.py.  This avoids pandas trying
         # (and sometimes failing) to infer date formats automatically.
         if col_name in ("Order Date", "Ship Date"):
-            dtype_map[col_name] = "object"   # Force string so we control parsing ourselves
+            dtype_map[col_name] = "object"  # Force string so we control parsing ourselves
 
         # Postal Code must stay as a string to preserve leading zeros (e.g. "07094").
         elif col_name == "Postal Code":
-            dtype_map[col_name] = "object"   # str prevents "07094" becoming 7094
+            dtype_map[col_name] = "object"  # str prevents "07094" becoming 7094
 
         else:
             dtype_map[col_name] = raw_dtype  # Use the dtype declared in schema.yaml
 
-    return dtype_map   # Return the completed {column: dtype} mapping
+    return dtype_map  # Return the completed {column: dtype} mapping
 
 
 def _validate_columns(df: pd.DataFrame, schema: dict) -> None:
@@ -118,17 +119,15 @@ def _validate_columns(df: pd.DataFrame, schema: dict) -> None:
     ValueError
         If one or more expected columns are missing from the DataFrame.
     """
-    expected_columns = set(schema["columns"].keys())   # All column names declared in schema.yaml
-    actual_columns   = set(df.columns)                  # Columns actually present in the CSV
+    expected_columns = set(schema["columns"].keys())  # All column names declared in schema.yaml
+    actual_columns = set(df.columns)  # Columns actually present in the CSV
 
-    missing = expected_columns - actual_columns          # Columns in schema but not in the file
+    missing = expected_columns - actual_columns  # Columns in schema but not in the file
 
-    if missing:   # If any columns are absent, the file is not the expected dataset
-        raise ValueError(
-            f"Schema validation failed — missing columns: {sorted(missing)}"
-        )
+    if missing:  # If any columns are absent, the file is not the expected dataset
+        raise ValueError(f"Schema validation failed — missing columns: {sorted(missing)}")
 
-    logger.info(   # Log success so the pipeline audit trail shows this step passed
+    logger.info(  # Log success so the pipeline audit trail shows this step passed
         "Column validation passed",
         extra={"expected": len(expected_columns), "found": len(actual_columns)},
     )
@@ -138,6 +137,7 @@ def _validate_columns(df: pd.DataFrame, schema: dict) -> None:
 # extract  –  Public entry point
 # Called by orchestration/pipeline.py to perform the bronze-layer ingestion.
 # =============================================================================
+
 
 def extract() -> Tuple[pd.DataFrame, dict]:
     """
@@ -166,9 +166,9 @@ def extract() -> Tuple[pd.DataFrame, dict]:
     ValueError
         If required columns are missing from the loaded file.
     """
-    logger.info("Starting extraction step")   # Mark the beginning of this pipeline stage
+    logger.info("Starting extraction step")  # Mark the beginning of this pipeline stage
 
-    config, schema = _load_configs()   # Load both YAML config files
+    config, schema = _load_configs()  # Load both YAML config files
 
     # Resolve the bronze file path relative to the project root.
     bronze_path = PROJECT_ROOT / config["paths"]["bronze"]
@@ -180,7 +180,7 @@ def extract() -> Tuple[pd.DataFrame, dict]:
             "Download the dataset from Kaggle and place it at the path above."
         )
 
-    logger.info("Reading CSV", extra={"path": str(bronze_path)})   # Log the file being loaded
+    logger.info("Reading CSV", extra={"path": str(bronze_path)})  # Log the file being loaded
 
     # Build the dtype mapping so pandas uses the right types from the start.
     dtype_map = _build_dtype_map(schema)
@@ -194,11 +194,11 @@ def extract() -> Tuple[pd.DataFrame, dict]:
     #             inferring types, preventing mixed-type warnings.
     # -------------------------------------------------------------------
     df = pd.read_csv(
-        bronze_path,                                         # Absolute path to the source file
-        encoding=config["source"]["encoding"],               # latin-1 for Windows-1252 characters
-        sep=config["source"]["separator"],                   # Comma delimiter
-        dtype=dtype_map,                                     # Pre-defined type map from schema
-        low_memory=False,                                    # Prevent mixed-type dtype inference
+        bronze_path,  # Absolute path to the source file
+        encoding=config["source"]["encoding"],  # latin-1 for Windows-1252 characters
+        sep=config["source"]["separator"],  # Comma delimiter
+        dtype=dtype_map,  # Pre-defined type map from schema
+        low_memory=False,  # Prevent mixed-type dtype inference
     )
 
     # Validate that all expected columns are present before proceeding.
@@ -206,15 +206,15 @@ def extract() -> Tuple[pd.DataFrame, dict]:
 
     # Build a metadata dict that the orchestrator will include in the run report.
     metadata = {
-        "source_path":  str(bronze_path),   # Absolute path to the source file
-        "row_count":    len(df),            # Total rows ingested from the CSV
-        "column_count": len(df.columns),    # Number of columns in the raw file
-        "columns":      list(df.columns),   # Ordered list of column names
+        "source_path": str(bronze_path),  # Absolute path to the source file
+        "row_count": len(df),  # Total rows ingested from the CSV
+        "column_count": len(df.columns),  # Number of columns in the raw file
+        "columns": list(df.columns),  # Ordered list of column names
     }
 
-    logger.info(   # Log the extraction summary for the pipeline audit trail
+    logger.info(  # Log the extraction summary for the pipeline audit trail
         "Extraction complete",
         extra={"rows": metadata["row_count"], "columns": metadata["column_count"]},
     )
 
-    return df, metadata   # Return the raw DataFrame and the audit metadata
+    return df, metadata  # Return the raw DataFrame and the audit metadata
