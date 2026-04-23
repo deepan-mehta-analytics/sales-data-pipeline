@@ -1,82 +1,115 @@
-name: CI
+# =============================================================================
+# .github/workflows/ci.yml
+# Continuous Integration workflow for the Superstore Sales Data Pipeline.
+#
+# Triggers:
+#   - Every push to any branch
+#   - Every pull request targeting the main branch
+#
+# Steps:
+#   1. Checkout the repository code
+#   2. Set up Python 3.11
+#   3. Cache pip dependencies for faster runs
+#   4. Install all production + dev dependencies
+#   5. Run code style checks (black, isort)
+#   6. Run linting (flake8)
+#   7. Run unit tests with coverage reporting
+#   8. Run integration tests
+#   9. Upload coverage report to GitHub Actions summary
+# =============================================================================
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
+name: CI — Lint, Test, Coverage   # Displayed as the workflow name in the GitHub UI
+
+on:                                # Define the events that trigger this workflow
+  push:                            # Trigger on every push to any branch
+    branches: ["**"]
+  pull_request:                    # Trigger on every pull request targeting main
+    branches: [main]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  test:
+    name: Lint + Test (Python 3.11)   # Job name shown in the GitHub Actions UI
+    runs-on: ubuntu-latest            # Run on the latest Ubuntu GitHub-hosted runner
 
     steps:
-      # --------------------------------------------------
-      # Checkout repository
-      # --------------------------------------------------
+      # -----------------------------------------------------------------------
+      # Step 1: Check out the repository at the commit that triggered the run
+      # -----------------------------------------------------------------------
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4     # Official GitHub checkout action
 
-      # --------------------------------------------------
-      # Set up Python environment
-      # --------------------------------------------------
-      - name: Set up Python
+      # -----------------------------------------------------------------------
+      # Step 2: Install Python 3.11 on the runner
+      # -----------------------------------------------------------------------
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.11"      # Pin to 3.11 for reproducible builds
 
-      # --------------------------------------------------
-      # Install dependencies
-      # --------------------------------------------------
+      # -----------------------------------------------------------------------
+      # Step 3: Cache pip packages to speed up subsequent workflow runs
+      # The cache key includes the requirements files so the cache is
+      # invalidated automatically when dependencies change.
+      # -----------------------------------------------------------------------
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip                      # pip's default HTTP cache directory
+          key: pip-${{ hashFiles('requirements*.txt') }}   # Cache key based on dep files
+          restore-keys: pip-                      # Fallback key for partial cache hits
+
+      # -----------------------------------------------------------------------
+      # Step 4: Install production and development dependencies
+      # -----------------------------------------------------------------------
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          python -m pip install --upgrade pip          # Upgrade pip itself first
+          pip install -r requirements.txt              # Install production dependencies
+          pip install -r requirements-dev.txt          # Install testing + linting tools
 
-      # --------------------------------------------------
-      # Code formatting check (Black)
-      # --------------------------------------------------
-      - name: Check formatting with Black
-        run: |
-          black --check src tests orchestration
+      # -----------------------------------------------------------------------
+      # Step 5: Check code formatting with black (--check mode: no changes made)
+      # -----------------------------------------------------------------------
+      - name: Check formatting (black)
+        run: black --check src/ tests/ orchestration/   # Fail if any file is not black-formatted
 
-      # --------------------------------------------------
-      # Import sorting check (isort)
-      # --------------------------------------------------
-      - name: Check imports with isort
-        run: |
-          isort --check-only src tests orchestration
+      # -----------------------------------------------------------------------
+      # Step 6: Check import ordering with isort (--check-only mode)
+      # -----------------------------------------------------------------------
+      - name: Check import order (isort)
+        run: isort --check-only src/ tests/ orchestration/   # Fail if imports are not sorted
 
-      # --------------------------------------------------
-      # Linting (flake8)
-      # --------------------------------------------------
+      # -----------------------------------------------------------------------
+      # Step 7: Run flake8 linter to catch PEP 8 style violations and errors
+      # -----------------------------------------------------------------------
       - name: Lint with flake8
+        run: flake8 src tests orchestration --max-line-length=120 --exclude=__pycache__,*.pyc
+      # -----------------------------------------------------------------------
+      # Step 8: Run unit tests with coverage measurement
+      # --cov=src:         measure coverage for the src/ package
+      # --cov-report=term: print a coverage summary in the CI log
+      # --cov-report=xml:  write coverage.xml for upload to Codecov (optional)
+      # -----------------------------------------------------------------------
+      - name: Run unit tests
         run: |
-          flake8 src tests orchestration \
-            --max-line-length=120 \
-            --exclude=__pycache__,*.pyc
+          pytest tests/unit/ -v \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml
 
-      # --------------------------------------------------
-      # Run tests (pytest)
-      # --------------------------------------------------
-      - name: Run tests
-        run: |
-          pytest --maxfail=1 --disable-warnings -q
+      # -----------------------------------------------------------------------
+      # Step 9: Run integration tests (against the sample bronze CSV)
+      # -----------------------------------------------------------------------
+      - name: Run integration tests
+        run: pytest tests/integration/ -v
 
-      # --------------------------------------------------
-      # Optional: Generate coverage (if enabled later)
-      # --------------------------------------------------
-      - name: Generate coverage report
-        run: |
-          pytest --cov=src --cov-report=xml || true
-
-      # --------------------------------------------------
-      # Upload coverage artifact (non-blocking)
-      # --------------------------------------------------
+      # -----------------------------------------------------------------------
+      # Step 10: Upload the coverage XML as a GitHub Actions artifact so it
+      # can be inspected or forwarded to Codecov / SonarCloud.
+      # -----------------------------------------------------------------------
       - name: Upload coverage report
+        if: always()                              # Upload even if previous steps failed
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: coverage.xml
-        if: always()
+          name: coverage-report                  # Artifact name in the GitHub UI
+          path: coverage.xml                     # Path of the coverage XML file to upload
