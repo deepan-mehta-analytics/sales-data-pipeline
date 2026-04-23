@@ -3,21 +3,20 @@
 # Unit tests for src/transform/feature_engineer.py.
 # =============================================================================
 
-import pytest
-import pandas as pd
-import numpy as np
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.transform.feature_engineer import (
-    add_time_features,  # Temporal KPI columns
-    add_financial_features,  # Margin and per-unit columns
-    add_categorical_features,  # Profit tier and shipping speed buckets
-    engineer,  # Public entry point
-)
+from src.transform.feature_engineer import add_categorical_features  # Profit tier and shipping speed buckets
+from src.transform.feature_engineer import add_financial_features  # Margin and per-unit columns
+from src.transform.feature_engineer import add_time_features  # Temporal KPI columns
+from src.transform.feature_engineer import engineer  # Public entry point
 
 
 class TestAddTimeFeatures:

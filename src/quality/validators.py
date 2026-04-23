@@ -14,11 +14,12 @@
 # it.  All fixes belong in src/transform/cleaner.py.
 # =============================================================================
 
-import pandas as pd  # DataFrame type used in all validators
-import yaml  # Reads schema.yaml for expected column defs
 from dataclasses import dataclass, field  # Lightweight result container
 from pathlib import Path  # Cross-platform path resolution
 from typing import List  # Type hints
+
+import pandas as pd  # DataFrame type used in all validators
+import yaml  # Reads schema.yaml for expected column defs
 
 from src.utils.logger import get_logger  # Centralised JSON logger
 

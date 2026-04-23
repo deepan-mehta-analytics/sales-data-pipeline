@@ -10,20 +10,19 @@
 #   - Metadata dict contains expected keys and correct row/column counts
 # =============================================================================
 
-import pytest  # pytest testing framework
-import pandas as pd  # DataFrame assertions
-from pathlib import Path  # Path manipulation for temporary file tests
 import sys
+from pathlib import Path  # Path manipulation for temporary file tests
+
+import pandas as pd  # DataFrame assertions
+import pytest  # pytest testing framework
 
 # Ensure the project root is on sys.path so 'from src...' imports resolve.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.extract.extractor import (
-    extract,  # Public entry point being tested
-    _build_dtype_map,  # Internal helper: builds dtype mapping from schema
-    _validate_columns,  # Internal helper: checks column presence
-)
+from src.extract.extractor import _build_dtype_map  # Internal helper: builds dtype mapping from schema
+from src.extract.extractor import _validate_columns  # Internal helper: checks column presence
+from src.extract.extractor import extract  # Public entry point being tested
 
 # =============================================================================
 # Tests for _build_dtype_map

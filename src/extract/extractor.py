@@ -14,10 +14,11 @@
 # from transformation makes the pipeline easier to debug and test.
 # =============================================================================
 
-import pandas as pd  # Core data-manipulation library
-import yaml  # Reads config.yaml and schema.yaml
 from pathlib import Path  # Cross-platform path handling
 from typing import Tuple  # Type-hint for the (DataFrame, dict) return value
+
+import pandas as pd  # Core data-manipulation library
+import yaml  # Reads config.yaml and schema.yaml
 
 from src.utils.logger import get_logger  # Centralised JSON logger
 

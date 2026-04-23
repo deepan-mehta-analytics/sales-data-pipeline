@@ -15,11 +15,12 @@
 # unit tests.  Run with: pytest tests/integration/ -v
 # =============================================================================
 
-import pytest  # pytest testing framework
+import sys
+from pathlib import Path  # Path handling
+
 import duckdb  # Used to query the DuckDB file produced by the pipeline
 import pandas as pd  # DataFrame assertions
-from pathlib import Path  # Path handling
-import sys
+import pytest  # pytest testing framework
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # tests/integration → project root
 sys.path.insert(0, str(PROJECT_ROOT))

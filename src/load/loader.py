@@ -20,11 +20,12 @@
 #   perfectly (no string/int ambiguity on reload).
 # =============================================================================
 
-import pandas as pd  # Core data-manipulation library
-import duckdb  # Embedded OLAP analytical database
-import yaml  # Reads config.yaml for paths and table names
 from pathlib import Path  # Cross-platform path resolution and directory creation
 from typing import Dict  # Type hint
+
+import duckdb  # Embedded OLAP analytical database
+import pandas as pd  # Core data-manipulation library
+import yaml  # Reads config.yaml for paths and table names
 
 from src.utils.logger import get_logger  # Centralised JSON logger
 

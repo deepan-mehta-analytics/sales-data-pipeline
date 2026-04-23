@@ -9,13 +9,14 @@
 # any pipeline code.
 # =============================================================================
 
-import logging  # Python standard-library logging framework
 import json  # Serialises log records to compact JSON strings
-import sys  # Provides the stdout stream for the console handler
+import logging  # Python standard-library logging framework
 import os  # Creates the logs/ directory when it does not yet exist
+import sys  # Provides the stdout stream for the console handler
 from datetime import datetime, timezone  # Generates ISO-8601 UTC timestamps
-import yaml  # Reads logging settings from config.yaml
 from pathlib import Path  # Cross-platform path resolution
+
+import yaml  # Reads logging settings from config.yaml
 
 # ---------------------------------------------------------------------------
 # Project root and config path

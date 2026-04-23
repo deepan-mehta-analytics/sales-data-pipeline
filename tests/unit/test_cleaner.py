@@ -13,23 +13,22 @@
 #   - clean() returns the correct metadata dict structure
 # =============================================================================
 
-import pytest  # pytest testing framework
-import pandas as pd  # DataFrame creation and type assertions
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pandas as pd  # DataFrame creation and type assertions
+import pytest  # pytest testing framework
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.transform.cleaner import (
-    parse_dates,  # Convert date string columns to datetime
-    strip_whitespace,  # Remove leading/trailing spaces from string columns
-    normalise_categoricals,  # Title-case categorical columns
-    fix_postal_codes,  # Standardise ZIP code format
-    remove_duplicates,  # Drop fully-duplicated rows
-    cast_numerics,  # Enforce numeric dtype on Sales, Profit, etc.
-    clean,  # Public entry point that applies all steps
-)
+from src.transform.cleaner import cast_numerics  # Enforce numeric dtype on Sales, Profit, etc.
+from src.transform.cleaner import clean  # Public entry point that applies all steps
+from src.transform.cleaner import fix_postal_codes  # Standardise ZIP code format
+from src.transform.cleaner import normalise_categoricals  # Title-case categorical columns
+from src.transform.cleaner import parse_dates  # Convert date string columns to datetime
+from src.transform.cleaner import remove_duplicates  # Drop fully-duplicated rows
+from src.transform.cleaner import strip_whitespace  # Remove leading/trailing spaces from string columns
 
 # =============================================================================
 # Tests for parse_dates
