@@ -128,13 +128,11 @@ class TestCheckShipAfterOrder:
         (not yet parsed to datetime) must return a failed result.
         The exact failure reason depends on the string content, but it must fail.
         """
-        result = check_ship_after_order(raw_df)   # raw_df has string date columns, not parsed to datetime
+        result = check_ship_after_order(raw_df)  # raw_df has string date columns, not parsed to datetime
 
         # The check must fail regardless of whether it detects the dtype issue
         # or finds string comparisons that look like date-order violations.
-        assert result.passed is False, (
-            "check_ship_after_order must fail on string-typed date columns"
-        )
+        assert result.passed is False, "check_ship_after_order must fail on string-typed date columns"
 
 
 class TestCheckDuplicateRows:
