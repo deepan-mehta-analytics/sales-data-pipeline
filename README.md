@@ -279,6 +279,26 @@ Pre-commit hooks run black, isort, and flake8 automatically before every commit 
 
 ---
 
+## 🧪 Pipeline Execution Evidence
+
+The pipeline runs end-to-end in under **1 second** on the full 9,994-row Superstore dataset, with structured JSON logs emitted at every stage for observability.
+
+![Pipeline successful run](docs/images/pipeline_run.png)
+
+**Run summary:**
+
+| Stage | Outcome |
+|---|---|
+| Extract | CSV ingested, schema validated |
+| Quality check (raw) | 5/5 checks passed |
+| Clean | Dates parsed, whitespace stripped, categoricals normalised, duplicates removed |
+| Quality check (cleaned) | 6/6 checks passed (incl. `ship_after_order`) |
+| Feature engineer | 13 derived columns added (time, financial, categorical) |
+| Load | Silver + 5 Gold Parquets written, DuckDB populated |
+| **Total runtime** | **~617 ms** |
+
+Every pipeline run is logged as structured JSON to `logs/pipeline.log` for downstream ingestion into any observability platform (Elastic, Datadog, CloudWatch, Splunk).
+
 ## 📊 Gold Layer Tables
 
 | Table | Rows | Key Metrics |
