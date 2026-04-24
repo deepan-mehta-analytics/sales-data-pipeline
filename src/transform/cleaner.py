@@ -111,8 +111,9 @@ def strip_whitespace(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()  # Work on a copy to avoid mutating the caller's DataFrame
 
-    # Select all columns whose dtype is 'object' (i.e. string columns).
-    string_columns = df.select_dtypes(include=["object"]).columns
+    # Include both 'object' and 'str' dtypes explicitly for forward-compatibility
+    # with pandas 3.x, which will separate these two dtype categories.
+    string_columns = df.select_dtypes(include=["object", "string"]).columns
 
     for col in string_columns:  # Iterate over every string column
         # Apply str.strip() to remove whitespace; na_action='ignore' leaves

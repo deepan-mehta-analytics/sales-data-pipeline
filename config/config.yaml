@@ -27,11 +27,11 @@ paths:
 
   # Gold layer – business-ready aggregated tables stored as Parquet
   gold:
-    sales_by_region:    "data/gold/sales_by_region.parquet"     # Regional performance summary
-    sales_by_category:  "data/gold/sales_by_category.parquet"   # Category & sub-category metrics
-    customer_segments:  "data/gold/customer_segments.parquet"   # Segment-level KPIs
-    monthly_trends:     "data/gold/monthly_trends.parquet"      # Monthly time-series aggregation
-    product_performance:"data/gold/product_performance.parquet" # Top/bottom product metrics
+    sales_by_region: "data/gold/sales_by_region.parquet"     # Regional performance summary
+    sales_by_category: "data/gold/sales_by_category.parquet"   # Category & sub-category metrics
+    customer_segments: "data/gold/customer_segments.parquet"   # Segment-level KPIs
+    monthly_trends: "data/gold/monthly_trends.parquet"      # Monthly time-series aggregation
+    product_performance: "data/gold/product_performance.parquet" # Top/bottom product metrics
 
   # Analytical store – embedded DuckDB database file
   database: "database/superstore.duckdb"

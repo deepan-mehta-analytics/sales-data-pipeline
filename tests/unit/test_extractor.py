@@ -89,14 +89,14 @@ class TestValidateColumns:
         # Remove the 'Sales' column to simulate a malformed source file.
         df_missing_col = raw_df.drop(columns=["Sales"])
 
-        with pytest.raises(ValueError, match="Missing columns"):  # Expect ValueError
+        with pytest.raises(ValueError, match="missing columns"):  # Expect ValueError
             _validate_columns(df_missing_col, schema)
 
     def test_multiple_missing_columns_raises(self, raw_df, schema):
         """ValueError must be raised even when multiple columns are absent."""
         df_missing_many = raw_df.drop(columns=["Sales", "Profit", "Quantity"])
 
-        with pytest.raises(ValueError, match="Missing columns"):
+        with pytest.raises(ValueError, match="missing columns"):
             _validate_columns(df_missing_many, schema)
 
 
