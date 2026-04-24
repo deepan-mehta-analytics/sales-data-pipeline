@@ -299,7 +299,27 @@ The pipeline runs end-to-end in under **1 second** on the full 9,994-row Superst
 
 Every pipeline run is logged as structured JSON to `logs/pipeline.log` for downstream ingestion into any observability platform (Elastic, Datadog, CloudWatch, Splunk).
 
-## 📊 Gold Layer Tables
+---
+
+## 📊 Gold Layer Tables — Live Query Results
+
+The pipeline loads all five Gold aggregation tables into an embedded DuckDB analytical store that can be queried with standard SQL. Here is a live query result against the real Superstore dataset (9,994 rows):
+
+```sql
+SELECT Region,
+       ROUND(total_sales,  0) AS total_sales,
+       ROUND(total_profit, 0) AS total_profit,
+       total_orders,
+       ROUND(avg_profit_margin, 2) AS margin_pct
+FROM   agg_sales_by_region
+ORDER  BY total_sales DESC;
+```
+
+![DuckDB query result — sales by region](docs/images/duckdb_query_result.png)
+
+**Key insight surfaced by the pipeline:** The **Central region is operating at a net loss** (-10.41% margin) despite generating $501K in revenue — a business problem worth investigating. **West region** leads both revenue and profitability at a healthy 21.95% margin.
+
+### Full Gold Layer Schema
 
 | Table | Rows | Key Metrics |
 |---|---|---|
@@ -308,7 +328,6 @@ Every pipeline run is logged as structured JSON to `logs/pipeline.log` for downs
 | `agg_customer_segments` | 3 | total_customers, avg_order_value |
 | `agg_monthly_trends` | 48 | total_sales, total_orders (monthly time series) |
 | `agg_product_performance` | 1,850 | total_sales, total_profit per SKU |
-
 ---
 
 ## 📂 Dataset
