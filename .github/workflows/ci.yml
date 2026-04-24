@@ -91,6 +91,8 @@ jobs:
       # --cov-report=xml:  write coverage.xml for upload to Codecov (optional)
       # -----------------------------------------------------------------------
       - name: Run unit tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           pytest tests/unit/ -v \
             --cov=src \
@@ -101,6 +103,8 @@ jobs:
       # Step 9: Run integration tests (against the sample bronze CSV)
       # -----------------------------------------------------------------------
       - name: Run integration tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: pytest tests/integration/ -v
 
       # -----------------------------------------------------------------------

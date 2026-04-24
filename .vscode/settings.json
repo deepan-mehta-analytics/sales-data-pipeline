@@ -4,5 +4,6 @@
     "files.trimFinalNewlines": true,
     "[python]": {
         "editor.formatOnSave": true
-    }
+    },
+    "python-envs.defaultEnvManager": "ms-python.python:system"
 }

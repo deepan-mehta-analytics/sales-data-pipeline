@@ -1,0 +1,46 @@
+# =============================================================================
+# .gitattributes
+# Enforces consistent line endings across Windows, macOS, and Linux.
+# Prevents the "LF will be replaced by CRLF" warnings on Windows.
+# =============================================================================
+
+# Default: auto-detect text files and normalise to LF in the repository,
+# convert to the platform's native line ending in the working tree.
+* text=auto eol=lf
+
+# Python source files — always LF (Unix-style), both in repo and on disk.
+# Tools like black, pytest, and flake8 work most reliably with LF endings.
+*.py text eol=lf
+
+# Configuration files — always LF.
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.toml      text eol=lf
+*.ini       text eol=lf
+*.cfg       text eol=lf
+
+# Documentation — always LF.
+*.md   text eol=lf
+*.rst  text eol=lf
+*.txt  text eol=lf
+
+# Shell / Dockerfiles — MUST be LF; CRLF breaks them on Linux runners.
+Dockerfile  text eol=lf
+*.sh        text eol=lf
+Makefile    text eol=lf
+
+# Windows-native files — always CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files — never convert.
+*.parquet binary
+*.duckdb  binary
+*.csv     binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.pdf     binary
+*.xlsx    binary
+*.zip     binary

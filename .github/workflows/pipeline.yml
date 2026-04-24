@@ -41,8 +41,10 @@ jobs:
           python -m pip install --upgrade pip    # Upgrade pip before installing
           pip install -r requirements.txt        # Production dependencies only
 
-      - name: Run pipeline
-        run: python orchestration/pipeline.py    # Execute the full ETL pipeline
+      - - name: Run pipeline
+          env:
+          PYTHONPATH: ${{ github.workspace }}
+          run: python orchestration/pipeline.py
 
       - name: Upload pipeline logs
         if: always()                             # Upload logs even if the pipeline fails
