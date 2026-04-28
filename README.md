@@ -346,7 +346,7 @@ ORDER  BY total_sales DESC;
 
 **Deepan Mehta**
 
-- Data Analytics → Data Engineering → MLOps
+- Data Analytics → Data Engineering → AI/ML Engineering
 - Focused on building end-to-end data systems combining analytics, automation, and deployment
 - Experience in ETL pipelines, predictive modelling, and analytical databases
 
