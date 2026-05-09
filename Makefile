@@ -17,7 +17,7 @@
 # so it always executes the recipe, even if a file with the same name exists.
 # =============================================================================
 
-.PHONY: install run test test-unit test-int lint format clean help
+.PHONY: install run profile test test-unit test-int lint format clean help
 
 # ---------------------------------------------------------------------------
 # Python interpreter — override with: make run PYTHON=python3.11
@@ -42,11 +42,24 @@ install:
 # ---------------------------------------------------------------------------
 # run
 # Execute the full ETL pipeline from bronze CSV to DuckDB.
+# Includes drift detection and profiling (stages 7 and 8) automatically.
 # ---------------------------------------------------------------------------
 run:
 	@echo "🚀 Running the full ETL pipeline..."
 	$(PYTHON) orchestration/pipeline.py
 	@echo "✅ Pipeline run complete."
+
+# ---------------------------------------------------------------------------
+# profile
+# Install ydata-profiling and run the pipeline to generate a full HTML report.
+# The report is written to reports/profile_YYYYMMDD_HHMMSS.html
+# ---------------------------------------------------------------------------
+profile:
+	@echo "📦 Installing profiling dependencies..."
+	$(PYTHON) -m pip install -r requirements-profiling.txt   # Install ydata-profiling
+	@echo "🚀 Running pipeline with full ydata-profiling report..."
+	$(PYTHON) orchestration/pipeline.py
+	@echo "✅ Profiling report written to reports/"
 
 # ---------------------------------------------------------------------------
 # test
@@ -123,6 +136,9 @@ clean:
 	rm -f  data/gold/*.parquet                    # Remove gold Parquet files
 	rm -f  database/*.duckdb                      # Remove DuckDB database file
 	rm -f  logs/pipeline.log                      # Remove the pipeline log file
+	@echo "🧹 Removing profiling reports..."
+	rm -f  reports/*.html                         # Remove generated HTML profile reports
+	rm -f  reports/run_stats_reference.json       # Remove the drift-detector reference snapshot
 	@echo "✅ Clean complete."
 
 # ---------------------------------------------------------------------------
@@ -135,6 +151,7 @@ help:
 	@echo "────────────────────────────────────────────────────"
 	@echo "  make install    Install all dependencies and git hooks"
 	@echo "  make run        Execute the full ETL pipeline"
+	@echo "  make profile    Install ydata-profiling and run with full HTML report"
 	@echo "  make test       Run all tests with coverage report"
 	@echo "  make test-unit  Run unit tests only (fast)"
 	@echo "  make test-int   Run integration tests only"

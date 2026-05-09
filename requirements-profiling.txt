@@ -1,0 +1,17 @@
+# =============================================================================
+# requirements-profiling.txt
+# Optional heavy-weight data-profiling dependency.
+#
+# Install separately to keep the core production and Docker images lean:
+#
+#   pip install -r requirements-profiling.txt
+#
+# Used by: src/quality/profiler.py
+# Generates: reports/profile_YYYYMMDD_HHMMSS.html
+#
+# Not included in requirements.txt or the Dockerfile — the profiler degrades
+# gracefully to a lightweight pandas-describe HTML fallback when this package
+# is not installed.
+# =============================================================================
+
+ydata-profiling>=4.6.0   # Full interactive HTML data-profiling report (pulls matplotlib, scipy, etc.)

@@ -83,3 +83,12 @@ secrets.yaml
 # Docker
 # -----------------------------------------------------------------------------
 *.tar
+
+# -----------------------------------------------------------------------------
+# Profiling reports and drift-detector reference stats
+# HTML reports are large generated files; the reference JSON is regenerated
+# on every run and should not pollute the git history.
+# The reports/ directory itself is tracked via reports/.gitkeep
+# -----------------------------------------------------------------------------
+reports/*.html
+reports/run_stats_reference.json

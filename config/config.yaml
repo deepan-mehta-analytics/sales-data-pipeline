@@ -61,6 +61,15 @@ pipeline:
   # Minimum acceptable row count after cleaning; fewer rows triggers a warning
   min_rows_threshold: 100
 
+  # Whether to generate an HTML data-profiling report after each run
+  # Requires: pip install -r requirements-profiling.txt (ydata-profiling)
+  # Falls back to a lightweight pandas-describe HTML report if not installed
+  generate_profile: true
+
+  # Relative drift threshold for the statistical drift detector (0.05 = 5 %)
+  # Any metric whose value changes by more than this fraction triggers a WARNING
+  drift_threshold: 0.05
+
 # ---------------------------------------------------------------------------
 # DuckDB analytical store settings
 # ---------------------------------------------------------------------------

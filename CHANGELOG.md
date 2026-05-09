@@ -7,6 +7,24 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.1.0] — 2026-05-09
+
+### Added
+- `src/quality/profiler.py` — Optional HTML data-profiling report via ydata-profiling; falls back to pandas-describe HTML when ydata-profiling is not installed
+- `src/quality/drift_detector.py` — Dependency-free statistical drift detection comparing key metrics against a prior-run JSON reference snapshot
+- `requirements-profiling.txt` — Separate optional requirements file for ydata-profiling to keep the core Docker image lean
+- `reports/` directory — Output location for HTML profiling reports and the drift-reference JSON
+- Codecov integration in `.github/workflows/ci.yml` — coverage badge wired to codecov.io via `codecov/codecov-action@v4`
+- Profiling HTML report upload as a named artefact in `.github/workflows/pipeline.yml`
+- `make profile` command in `Makefile` — installs ydata-profiling and runs the pipeline
+- `pipeline.drift_threshold` and `pipeline.generate_profile` flags added to `config/config.yaml`
+- README: Codecov badge, v1.1 status badge, release badge, profiling/observability section, roadmap table
+
+### Fixed
+- `.github/workflows/pipeline.yml` — corrected malformed YAML (`- - name:` → `- name:`) in the Run pipeline step
+
+---
+
 ## [1.0.0] — 2024-01-01
 
 ### Added

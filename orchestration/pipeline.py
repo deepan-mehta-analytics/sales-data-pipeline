@@ -24,6 +24,8 @@ import yaml  # Reads config.yaml for quality-gate settings
 
 from src.extract.extractor import extract  # Bronze-layer CSV ingestion
 from src.load.loader import load  # Gold-layer loading
+from src.quality.drift_detector import detect_drift  # Statistical drift detection vs prior run
+from src.quality.profiler import generate_profile  # HTML data-profiling report generator
 from src.quality.validators import run_quality_checks  # Data quality validation
 from src.transform.cleaner import clean  # Silver-layer data cleaning
 from src.transform.feature_engineer import engineer  # Feature engineering
@@ -251,6 +253,36 @@ def run() -> dict:
     # -----------------------------------------------------------------------
     load_meta = _run_stage("load", load, enriched_df)
     report["stages"]["load"] = load_meta  # Attach loading metadata
+
+    # -----------------------------------------------------------------------
+    # Stage 7: Statistical drift detection (v1.1)
+    # Compare key metrics from this run against the stored reference snapshot.
+    # Emits WARNING logs for any metric that drifted beyond the threshold.
+    # Never fails the pipeline — drift is surfaced as observability signal only.
+    # -----------------------------------------------------------------------
+    drift_threshold = config.get("pipeline", {}).get("drift_threshold", 0.05)  # Default 5 %
+    drift_report = _run_stage("drift_detection", detect_drift, enriched_df, drift_threshold)
+    report["drift"] = {  # Attach drift summary to the run report
+        "is_first_run": drift_report.get("is_first_run", False),
+        "findings_count": len(drift_report.get("drift_findings", [])),
+        "findings": drift_report.get("drift_findings", []),
+    }
+
+    # -----------------------------------------------------------------------
+    # Stage 8: Data profiling (v1.1)
+    # Generate an HTML profiling report for the enriched silver DataFrame.
+    # Requires requirements-profiling.txt (ydata-profiling); falls back to a
+    # lightweight pandas-describe HTML report if ydata-profiling is absent.
+    # Skipped entirely when generate_profile: false in config.yaml.
+    # -----------------------------------------------------------------------
+    generate_profile_flag = config.get("pipeline", {}).get("generate_profile", True)
+    if generate_profile_flag:  # Only run if profiling is enabled in config
+        profile_path = _run_stage("profiling", generate_profile, enriched_df)
+        report["stages"]["profiling"] = {  # Attach profile path to the run report
+            "report_path": str(profile_path) if profile_path else None,
+        }
+    else:
+        logger.info("Profiling skipped (generate_profile: false in config.yaml)")  # Log the skip
 
     # -----------------------------------------------------------------------
     # Pipeline complete
