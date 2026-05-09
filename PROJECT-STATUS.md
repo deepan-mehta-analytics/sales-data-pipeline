@@ -11,8 +11,9 @@
 | Field | Value |
 |---|---|
 | **Version** | 1.0.0 |
+| **GitHub Release** | [v1.0.0 — End-to-End Superstore Sales ETL Pipeline MVP](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.0.0) |
 | **Phase** | Production-ready — all pipeline phases complete |
-| **Latest commit** | `3ebe8bc6` — `docs: add live DuckDB query result showcasing gold layer` |
+| **Latest commit** | `9eb21d44` — `docs: add PROJECT-STATUS.md with versioned release roadmap` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
