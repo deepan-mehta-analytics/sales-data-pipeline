@@ -17,8 +17,10 @@ It automates data cleaning, validation, feature engineering, and aggregation, an
 [![Docker](https://img.shields.io/badge/Docker-Containerised-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/features/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/deepan-mehta-analytics/sales-data-pipeline?style=for-the-badge&logo=codecov)](https://codecov.io/gh/deepan-mehta-analytics/sales-data-pipeline)
-[![v1.0.0](https://img.shields.io/badge/Release-v1.0.0-success?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.0.0)
-[![Status](https://img.shields.io/badge/Status-v1.1_In_Development-blue?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Query_API-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![GHCR](https://img.shields.io/badge/GHCR-Docker_Published-2496ED?style=for-the-badge&logo=github&logoColor=white)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/pkgs/container/sales-data-pipeline)
+[![v1.2.0](https://img.shields.io/badge/Release-v1.2.0-success?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.0)
+[![Status](https://img.shields.io/badge/Status-v1.2_In_Development-blue?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases)
 
 ---
 
@@ -37,6 +39,8 @@ It implements:
 - **Docker support** — Multi-stage containerised pipeline execution
 - **Data profiling** *(v1.1)* — HTML profiling report via ydata-profiling generated after each run
 - **Drift detection** *(v1.1)* — Statistical drift check comparing key metrics against prior-run reference
+- **REST query API** *(v1.2)* — FastAPI layer exposing all five DuckDB gold tables with typed Pydantic responses
+- **GHCR Docker publishing** *(v1.2)* — Pipeline and API images published to GitHub Container Registry on every version tag
 
 ---
 
@@ -52,6 +56,9 @@ It implements:
 | Testing | pytest + pytest-cov | Unit and integration test suite |
 | Coverage | Codecov | Coverage tracking and badge via codecov.io |
 | Data Profiling | ydata-profiling | Interactive HTML profiling report (optional, v1.1) |
+| Query API | FastAPI + uvicorn | REST layer over DuckDB gold tables (v1.2) |
+| API Validation | Pydantic v2 | Typed response schemas for all endpoints |
+| Container Registry | GitHub Container Registry | Versioned Docker image publishing on release tags (v1.2) |
 | Code Quality | black + isort + flake8 | Formatting, import sorting, and linting |
 | CI/CD | GitHub Actions | Automated test and pipeline execution |
 | Containers | Docker + Compose | Reproducible execution environment |
@@ -261,6 +268,79 @@ Gold Parquet outputs and the pipeline log are uploaded as **build artefacts** af
 
 ---
 
+## 🌐 Query the API *(v1.2)*
+
+After running the pipeline to generate the DuckDB database, start the FastAPI query layer:
+
+```bash
+# Install API dependencies and start the server
+make api
+# or manually:
+pip install -r requirements-api.txt
+uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Interactive docs (Swagger UI) available at **http://localhost:8000/docs**
+
+### Endpoints
+
+| Method | Path | Description | Source Table |
+|---|---|---|---|
+| `GET` | `/health` | Liveness check | — |
+| `GET` | `/sales/regions` | Regional KPIs ordered by revenue | `agg_sales_by_region` |
+| `GET` | `/sales/trends` | Monthly time-series; filter with `?year=2017` | `agg_monthly_trends` |
+| `GET` | `/products/top` | Top-N products by revenue; control with `?limit=N` (default 10, max 100) | `agg_product_performance` |
+| `GET` | `/segments` | Customer segment KPIs | `agg_customer_segments` |
+
+### Example curl calls
+
+```bash
+# Regional sales performance
+curl http://localhost:8000/sales/regions
+
+# Monthly trends for 2017 only
+curl "http://localhost:8000/sales/trends?year=2017"
+
+# Top 5 products by revenue
+curl "http://localhost:8000/products/top?limit=5"
+
+# Customer segment breakdown
+curl http://localhost:8000/segments
+```
+
+### Sample response — `/sales/regions`
+
+```json
+[
+  {"region": "West",    "total_sales": 725457.82, "total_profit":  108418.45, "total_orders": 3203, "avg_discount": 0.1440, "avg_profit_margin":  21.95},
+  {"region": "East",    "total_sales": 678781.24, "total_profit":   91522.78, "total_orders": 2848, "avg_discount": 0.1535, "avg_profit_margin":  20.14},
+  {"region": "Central", "total_sales": 501239.89, "total_profit":  -52196.38, "total_orders": 2323, "avg_discount": 0.2219, "avg_profit_margin": -10.41},
+  {"region": "South",   "total_sales": 391721.91, "total_profit":   46749.43, "total_orders": 1615, "avg_discount": 0.1463, "avg_profit_margin":  16.82}
+]
+```
+
+### Via Docker
+
+```bash
+# Step 1: Run the ETL pipeline to generate the DuckDB store
+docker compose run pipeline
+
+# Step 2: Start the API (mounts the same DuckDB volume)
+docker compose up api
+```
+
+### Pull from GHCR
+
+```bash
+# Pipeline image
+docker pull ghcr.io/deepan-mehta-analytics/sales-data-pipeline:latest
+
+# API image
+docker pull ghcr.io/deepan-mehta-analytics/sales-data-pipeline-api:latest
+```
+
+---
+
 ## 🧪 Running Tests
 
 ```bash
@@ -270,8 +350,11 @@ make test
 # Unit tests only (fast — no I/O)
 make test-unit
 
-# Integration tests only (full pipeline run)
+# Pipeline integration tests only (full pipeline run)
 make test-int
+
+# API smoke tests only (no real DuckDB required)
+make test-api
 ```
 
 ---
@@ -394,9 +477,9 @@ ORDER  BY total_sales DESC;
 | Version | Theme | Status |
 |---|---|---|
 | **v1.0.0** | MVP — full medallion ETL, DuckDB, CI/CD, Docker, 90 tests | ✅ Released |
-| **v1.1** | Observability — Codecov, ydata-profiling HTML report, drift detection | 🔄 In Development |
-| **v1.2** | Query API — FastAPI layer exposing DuckDB gold tables as REST endpoints | 📋 Planned |
-| **v2.0** | Cloud-Native — S3/GCS output, Airflow/Prefect DAG, BigQuery store | 📋 Backlog |
+| **v1.1.0** | Observability — Codecov, ydata-profiling HTML report, drift detection | ✅ Released |
+| **v1.2.0** | Query API — FastAPI layer + GHCR Docker publishing | 🔄 In Development |
+| **v2.0.0** | Cloud-Native — S3/GCS output, Airflow/Prefect DAG, BigQuery store | 📋 Backlog |
 
 See [PROJECT-STATUS.md](PROJECT-STATUS.md) for full roadmap detail.
 
