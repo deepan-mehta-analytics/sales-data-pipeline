@@ -2,15 +2,19 @@
 # Dockerfile
 # Multi-stage Docker build for the Superstore Sales Data Pipeline.
 #
-# Stage 1 (builder): Installs all Python dependencies into a virtual env.
-# Stage 2 (runtime): Copies only the venv and source code — no build tools.
+# Stage 1 — builder:     Installs all Python dependencies into a virtual env.
+# Stage 2 — runtime:     Pipeline execution image (no build tools, no API).
+# Stage 3 — api-builder: Extends builder with FastAPI + uvicorn deps.
+# Stage 4 — api-runtime: FastAPI query service image.
 #
-# Multi-stage builds keep the final image small by excluding compilers,
-# pip cache, and other build-time artefacts from the production image.
+# Multi-stage builds keep final images small by excluding compilers, pip
+# cache, and build-time artefacts from the production images.
 #
-# Build:  docker build -t sales-pipeline .
-# Run:    docker run --rm -v $(pwd)/data:/app/data sales-pipeline
+# Build pipeline image:  docker build --target runtime -t sales-pipeline .
+# Build API image:       docker build --target api-runtime -t sales-api .
+# Run pipeline:          docker run --rm -v $(pwd)/data:/app/data sales-pipeline
 # =============================================================================
+
 
 # ---------------------------------------------------------------------------
 # Stage 1: Builder
@@ -22,36 +26,38 @@ FROM python:3.11-slim AS builder
 # Set the working directory inside the builder container.
 WORKDIR /app
 
-# Copy only the dependency files first.
-# Docker layer caching means 'pip install' is re-run only when these
-# files change, not on every source code change.
+# Copy only the dependency manifest first.
+# Docker layer caching means pip install is re-run only when requirements.txt
+# changes, not on every source code change.
 COPY requirements.txt .
 
-# Install dependencies into a virtual environment inside the builder.
-# Using a venv makes it trivial to copy the installed packages to the
-# runtime stage without carrying along pip or setuptools.
-RUN python -m venv /opt/venv                                          # Create the virtual env
-ENV PATH="/opt/venv/bin:$PATH"                                        # Add venv to PATH
+# Create the virtual environment that will be copied into the runtime stage.
+RUN python -m venv /opt/venv
 
-RUN pip install --upgrade pip                       && \              # Upgrade pip in the venv
-    pip install --no-cache-dir -r requirements.txt                    # Install runtime deps (no cache)
+# Activate the venv so all subsequent pip commands install into it.
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Upgrade pip then install all production dependencies into the venv.
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime
 # A clean Python 3.11 slim image with only the venv and application code.
+# This is the pipeline execution image — no build tools, no API framework.
 # ---------------------------------------------------------------------------
 FROM python:3.11-slim AS runtime
 
-# Set metadata labels — visible via 'docker inspect'
+# Set metadata labels visible via 'docker inspect'.
 LABEL maintainer="Deepan Mehta"
 LABEL description="Superstore Sales Data Pipeline"
 LABEL version="1.2.0"
 
-# Set the working directory for the application.
+# Set the working directory for the pipeline.
 WORKDIR /app
 
-# Copy the virtual environment from the builder stage.
+# Copy the pre-built virtual environment from the builder stage.
 # This brings in all installed packages without pip or build tools.
 COPY --from=builder /opt/venv /opt/venv
 
@@ -62,40 +68,39 @@ ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONPATH="/app"
 
 # Prevent Python from writing .pyc files to disk inside the container.
-# Bytecode caching is unnecessary in a containerised, read-only deployment.
 ENV PYTHONDONTWRITEBYTECODE=1
 
 # Prevent Python from buffering stdout/stderr.
 # Unbuffered output ensures log lines appear in 'docker logs' immediately.
 ENV PYTHONUNBUFFERED=1
 
-# Copy the project source code and configuration into the container.
-# Copying in layers lets Docker cache unchanged layers efficiently.
-COPY config/      ./config/          # Configuration and schema YAML files
-COPY src/         ./src/             # Pipeline source modules
-COPY orchestration/ ./orchestration/ # Pipeline orchestrator
+# Copy configuration files.
+COPY config/ ./config/
 
-# Create the output directories inside the container.
-# These are overridden by volume mounts in docker-compose.yml so data
-# persists on the host machine between container runs.
+# Copy the pipeline source modules.
+COPY src/ ./src/
+
+# Copy the DAG-style orchestrator entry point.
+COPY orchestration/ ./orchestration/
+
+# Create output directories that will be overlaid by volume mounts at runtime.
 RUN mkdir -p data/bronze data/silver data/gold database logs
 
 # Default command: run the full ETL pipeline.
-# Override at runtime: docker run ... python -m pytest tests/
 CMD ["python", "orchestration/pipeline.py"]
 
 
 # ---------------------------------------------------------------------------
 # Stage 3: API Builder
 # Extends the base builder stage with FastAPI and uvicorn dependencies.
-# Kept separate so the pipeline runtime image stays lean (no web framework).
+# Kept as a separate stage so the pipeline runtime image stays lean.
 # ---------------------------------------------------------------------------
 FROM builder AS api-builder
 
 # Copy the API-specific requirements file into the builder layer.
 COPY requirements-api.txt .
 
-# Install FastAPI, uvicorn, and httpx on top of the existing venv.
+# Install FastAPI, uvicorn, and httpx on top of the existing pipeline venv.
 RUN pip install --no-cache-dir -r requirements-api.txt
 
 
@@ -114,7 +119,7 @@ LABEL version="1.2.0"
 # Set the working directory for the API service.
 WORKDIR /app
 
-# Copy the extended virtual environment (pipeline + API deps) from api-builder.
+# Copy the full virtual environment (pipeline + API deps) from api-builder.
 COPY --from=api-builder /opt/venv /opt/venv
 
 # Activate the copied virtual environment.
@@ -129,12 +134,16 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Ensure log output is flushed immediately — critical for Docker log tailing.
 ENV PYTHONUNBUFFERED=1
 
-# Copy the source modules the API depends on.
+# Copy configuration files.
 COPY config/ ./config/
+
+# Copy the pipeline source modules the API depends on.
 COPY src/ ./src/
+
+# Copy the FastAPI application package.
 COPY api/ ./api/
 
-# Create the database directory the API's DB_PATH expects.
+# Create the database directory the API's DB_PATH expects at startup.
 RUN mkdir -p database
 
 # Expose the uvicorn port.
