@@ -7,6 +7,22 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.0] — 2026-05-09
+
+### Added
+- `api/app.py` — FastAPI query layer with five endpoints: `/health`, `/sales/regions`, `/sales/trends`, `/products/top`, `/segments`
+- `api/database.py` — DuckDB read-only connection dependency; yields one connection per request; 503 guard when database file is absent
+- `api/models.py` — Pydantic v2 response schemas: `RegionSales`, `MonthlyTrend`, `ProductPerformance`, `CustomerSegment`
+- `requirements-api.txt` — Isolated API dependencies (fastapi, uvicorn, httpx); not installed in the pipeline Docker image
+- `tests/integration/test_api.py` — 14 smoke tests covering all endpoints, year filter, limit bounds, field presence, and ordering guarantees
+- `Dockerfile` — `api-builder` (Stage 3) and `api-runtime` (Stage 4) added for the FastAPI service
+- `docker-compose.yml` — `api` service added alongside `pipeline`; mounts the DuckDB volume; exposes port 8000
+- `.github/workflows/release.yml` — GHCR Docker image publish workflow triggered on `v*.*.*` tags; pushes pipeline and API images as separate versioned + latest tags
+- `.github/workflows/ci.yml` — API smoke tests added as a dedicated step; `api/` included in black / isort / flake8 checks; `requirements-api.txt` installed in CI
+- `Makefile` — `make api` (start FastAPI server), `make test-api` (API smoke tests), `make test-int` narrowed to pipeline tests only; lint/format extended to `api/`
+
+---
+
 ## [1.1.0] — 2026-05-09
 
 ### Added

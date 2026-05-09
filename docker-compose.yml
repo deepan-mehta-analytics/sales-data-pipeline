@@ -4,14 +4,20 @@
 #
 # Services:
 #   pipeline – runs the full ETL pipeline inside a container
+#   api      – serves the FastAPI query layer on localhost:8000
+#
+# Typical local workflow:
+#   1. docker compose run pipeline   — Run the ETL pipeline; generates DuckDB
+#   2. docker compose up api         — Start the API pointing at that DuckDB
 #
 # Volume mounts ensure that the bronze CSV, silver/gold Parquet files,
 # the DuckDB database, and pipeline logs are written to the host machine
 # and persist between container restarts.
 #
 # Usage:
-#   docker compose up            – Build the image and run the pipeline
-#   docker compose up --build    – Force a rebuild before running
+#   docker compose run pipeline      – Run the full ETL pipeline once
+#   docker compose up api            – Start the query API (pipeline must run first)
+#   docker compose up --build        – Force a rebuild before starting
 #   docker compose run pipeline make test  – Run tests inside the container
 # =============================================================================
 
@@ -71,3 +77,41 @@ services:
     # The pipeline is a batch job — it runs once and exits.
     # -------------------------------------------------------------------------
     restart: "no"
+
+
+  # ---------------------------------------------------------------------------
+  # api
+  # FastAPI query service exposing the DuckDB gold tables as REST endpoints.
+  #
+  # Prerequisites: run the pipeline service first so the DuckDB file exists.
+  #   docker compose run pipeline
+  #   docker compose up api
+  #
+  # Endpoints (interactive docs at http://localhost:8000/docs):
+  #   GET /health           Liveness check
+  #   GET /sales/regions    Regional KPIs
+  #   GET /sales/trends     Monthly time-series (optional ?year= filter)
+  #   GET /products/top     Top-N products by revenue (optional ?limit=N)
+  #   GET /segments         Customer segment KPIs
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .              # Build context is the project root
+      dockerfile: Dockerfile  # Use the multi-stage project Dockerfile
+      target: api-runtime     # Build only up to the API runtime stage
+
+    image: sales-api:latest   # Tag the built API image for easy reference
+
+    container_name: sales-api  # Fixed container name for easy 'docker logs'
+
+    ports:
+      - "8000:8000"            # Map host port 8000 to the uvicorn port inside the container
+
+    volumes:
+      # DuckDB: the API reads the analytical database written by the pipeline.
+      - ./database:/app/database
+
+    environment:
+      - PYTHONUNBUFFERED=1     # Flush logs immediately to docker logs
+
+    restart: unless-stopped    # Restart the API automatically on failure or system reboot

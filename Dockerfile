@@ -44,9 +44,9 @@ RUN pip install --upgrade pip                       && \              # Upgrade 
 FROM python:3.11-slim AS runtime
 
 # Set metadata labels — visible via 'docker inspect'
-LABEL maintainer="Your Name <you@example.com>"
+LABEL maintainer="Deepan Mehta"
 LABEL description="Superstore Sales Data Pipeline"
-LABEL version="1.0.0"
+LABEL version="1.2.0"
 
 # Set the working directory for the application.
 WORKDIR /app
@@ -83,3 +83,62 @@ RUN mkdir -p data/bronze data/silver data/gold database logs
 # Default command: run the full ETL pipeline.
 # Override at runtime: docker run ... python -m pytest tests/
 CMD ["python", "orchestration/pipeline.py"]
+
+
+# ---------------------------------------------------------------------------
+# Stage 3: API Builder
+# Extends the base builder stage with FastAPI and uvicorn dependencies.
+# Kept separate so the pipeline runtime image stays lean (no web framework).
+# ---------------------------------------------------------------------------
+FROM builder AS api-builder
+
+# Copy the API-specific requirements file into the builder layer.
+COPY requirements-api.txt .
+
+# Install FastAPI, uvicorn, and httpx on top of the existing venv.
+RUN pip install --no-cache-dir -r requirements-api.txt
+
+
+# ---------------------------------------------------------------------------
+# Stage 4: API Runtime
+# Clean production image for the FastAPI query service.
+# Contains the full venv (pipeline + API deps) and the api/ + src/ modules.
+# ---------------------------------------------------------------------------
+FROM python:3.11-slim AS api-runtime
+
+# Set metadata labels for the API image.
+LABEL maintainer="Deepan Mehta"
+LABEL description="Superstore Sales Query API"
+LABEL version="1.2.0"
+
+# Set the working directory for the API service.
+WORKDIR /app
+
+# Copy the extended virtual environment (pipeline + API deps) from api-builder.
+COPY --from=api-builder /opt/venv /opt/venv
+
+# Activate the copied virtual environment.
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Set PYTHONPATH so 'from api...' and 'from src...' imports resolve at runtime.
+ENV PYTHONPATH="/app"
+
+# Suppress .pyc file generation inside the container.
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Ensure log output is flushed immediately — critical for Docker log tailing.
+ENV PYTHONUNBUFFERED=1
+
+# Copy the source modules the API depends on.
+COPY config/ ./config/
+COPY src/ ./src/
+COPY api/ ./api/
+
+# Create the database directory the API's DB_PATH expects.
+RUN mkdir -p database
+
+# Expose the uvicorn port.
+EXPOSE 8000
+
+# Start the FastAPI application via uvicorn.
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]

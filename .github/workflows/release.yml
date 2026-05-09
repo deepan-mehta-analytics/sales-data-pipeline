@@ -1,0 +1,160 @@
+# =============================================================================
+# .github/workflows/release.yml
+# Release workflow: build and push Docker images to GHCR on every version tag.
+#
+# Triggers:
+#   - Any push of a tag matching v*.*.* (e.g. v1.2.0, v2.0.0)
+#
+# Jobs:
+#   push-pipeline  – Build the pipeline runtime image (Dockerfile target: runtime)
+#                    and push to ghcr.io/deepan-mehta-analytics/sales-data-pipeline
+#   push-api       – Build the API runtime image (Dockerfile target: api-runtime)
+#                    and push to ghcr.io/deepan-mehta-analytics/sales-data-pipeline-api
+#
+# Each job pushes two tags:
+#   - The exact semantic version (e.g. 1.2.0)    — immutable, safe to pin
+#   - 'latest'                                   — always points to the newest release
+#
+# Authentication:
+#   Uses the built-in GITHUB_TOKEN secret — no external credentials needed.
+#   The token is granted packages:write permission by the job-level permissions block.
+# =============================================================================
+
+name: Release — Build and Push to GHCR   # Workflow name shown in the GitHub Actions UI
+
+on:
+  push:
+    tags:
+      - "v*.*.*"   # Trigger on any semantic version tag (v1.2.0, v2.0.0, etc.)
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Job 1: Build and push the pipeline runtime image
+  # Dockerfile target: runtime  (Stage 2 — pipeline execution only, no API)
+  # ---------------------------------------------------------------------------
+  push-pipeline:
+    name: Push pipeline image to GHCR   # Job label in the GitHub Actions UI
+    runs-on: ubuntu-latest              # GitHub-hosted Ubuntu runner
+
+    permissions:
+      contents: read    # Read repo contents to build the Docker image
+      packages: write   # Write to GitHub Container Registry (GHCR)
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Step 1: Checkout the repository at the tagged commit
+      # -----------------------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4   # Official GitHub checkout action
+
+      # -----------------------------------------------------------------------
+      # Step 2: Set up Docker Buildx for multi-platform and cache support
+      # -----------------------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3   # Enables BuildKit features
+
+      # -----------------------------------------------------------------------
+      # Step 3: Authenticate to GHCR using the built-in GITHUB_TOKEN
+      # -----------------------------------------------------------------------
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io                       # Target registry
+          username: ${{ github.actor }}            # GitHub username that triggered the push
+          password: ${{ secrets.GITHUB_TOKEN }}    # Auto-provisioned token with packages:write
+
+      # -----------------------------------------------------------------------
+      # Step 4: Derive Docker image tags and OCI labels from the git tag
+      # Generates:
+      #   ghcr.io/deepan-mehta-analytics/sales-data-pipeline:1.2.0
+      #   ghcr.io/deepan-mehta-analytics/sales-data-pipeline:latest
+      # -----------------------------------------------------------------------
+      - name: Extract image metadata (pipeline)
+        id: meta-pipeline
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}   # Base image name from repo path
+          tags: |
+            type=semver,pattern={{version}}           # Exact version tag (e.g. 1.2.0)
+            type=raw,value=latest                     # Mutable latest pointer
+
+      # -----------------------------------------------------------------------
+      # Step 5: Build the pipeline runtime stage and push to GHCR
+      # -----------------------------------------------------------------------
+      - name: Build and push pipeline image
+        uses: docker/build-push-action@v5
+        with:
+          context: .                                  # Build context: project root
+          file: Dockerfile                            # Dockerfile to build
+          target: runtime                             # Build only the pipeline runtime stage
+          push: true                                  # Push to GHCR after building
+          tags: ${{ steps.meta-pipeline.outputs.tags }}      # Version + latest tags
+          labels: ${{ steps.meta-pipeline.outputs.labels }}  # OCI standard labels
+          cache-from: type=gha                        # Restore layer cache from GitHub Actions cache
+          cache-to: type=gha,mode=max                 # Save all layers to the cache
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Build and push the API runtime image
+  # Dockerfile target: api-runtime  (Stage 4 — FastAPI + uvicorn, no pipeline)
+  # ---------------------------------------------------------------------------
+  push-api:
+    name: Push API image to GHCR   # Job label in the GitHub Actions UI
+    runs-on: ubuntu-latest         # GitHub-hosted Ubuntu runner
+
+    permissions:
+      contents: read    # Read repo contents to build the Docker image
+      packages: write   # Write to GitHub Container Registry (GHCR)
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Step 1: Checkout the repository at the tagged commit
+      # -----------------------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4   # Official GitHub checkout action
+
+      # -----------------------------------------------------------------------
+      # Step 2: Set up Docker Buildx
+      # -----------------------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3   # Enables BuildKit features
+
+      # -----------------------------------------------------------------------
+      # Step 3: Authenticate to GHCR
+      # -----------------------------------------------------------------------
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io                       # Target registry
+          username: ${{ github.actor }}            # GitHub username
+          password: ${{ secrets.GITHUB_TOKEN }}    # Auto-provisioned token
+
+      # -----------------------------------------------------------------------
+      # Step 4: Derive Docker image tags for the API image
+      # Generates:
+      #   ghcr.io/deepan-mehta-analytics/sales-data-pipeline-api:1.2.0
+      #   ghcr.io/deepan-mehta-analytics/sales-data-pipeline-api:latest
+      # -----------------------------------------------------------------------
+      - name: Extract image metadata (API)
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-api   # Separate image name for the API
+          tags: |
+            type=semver,pattern={{version}}               # Exact version tag
+            type=raw,value=latest                         # Mutable latest pointer
+
+      # -----------------------------------------------------------------------
+      # Step 5: Build the API runtime stage and push to GHCR
+      # -----------------------------------------------------------------------
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .                                  # Build context: project root
+          file: Dockerfile                            # Same multi-stage Dockerfile
+          target: api-runtime                         # Build only the API runtime stage
+          push: true                                  # Push to GHCR after building
+          tags: ${{ steps.meta-api.outputs.tags }}      # Version + latest tags
+          labels: ${{ steps.meta-api.outputs.labels }}  # OCI standard labels
+          cache-from: type=gha                        # Restore layer cache
+          cache-to: type=gha,mode=max                 # Save all layers to cache

@@ -17,7 +17,7 @@
 # so it always executes the recipe, even if a file with the same name exists.
 # =============================================================================
 
-.PHONY: install run profile test test-unit test-int lint format clean help
+.PHONY: install run profile api test test-unit test-int test-api lint format clean help
 
 # ---------------------------------------------------------------------------
 # Python interpreter — override with: make run PYTHON=python3.11
@@ -62,6 +62,18 @@ profile:
 	@echo "✅ Profiling report written to reports/"
 
 # ---------------------------------------------------------------------------
+# api
+# Install API dependencies and start the FastAPI server locally on port 8000.
+# The pipeline must have been run first to generate the DuckDB database file.
+# Interactive docs available at http://localhost:8000/docs after startup.
+# ---------------------------------------------------------------------------
+api:
+	@echo "📦 Installing API dependencies..."
+	$(PYTHON) -m pip install -r requirements-api.txt   # Install fastapi + uvicorn
+	@echo "🚀 Starting FastAPI query layer on http://localhost:8000 ..."
+	uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
+
+# ---------------------------------------------------------------------------
 # test
 # Run the complete test suite (unit + integration) with coverage measurement.
 # Fails if coverage falls below the threshold set in pyproject.toml.
@@ -86,12 +98,22 @@ test-unit:
 
 # ---------------------------------------------------------------------------
 # test-int
-# Run only integration tests — slower, performs real disk and database I/O.
+# Run only pipeline integration tests — slower, performs real disk I/O.
 # ---------------------------------------------------------------------------
 test-int:
-	@echo "🧪 Running integration tests..."
-	pytest tests/integration/ -v
-	@echo "✅ Integration tests complete."
+	@echo "🧪 Running pipeline integration tests..."
+	pytest tests/integration/test_pipeline.py -v
+	@echo "✅ Pipeline integration tests complete."
+
+# ---------------------------------------------------------------------------
+# test-api
+# Run only the FastAPI smoke tests.  Uses an in-memory test DuckDB — no
+# real superstore.duckdb is required.
+# ---------------------------------------------------------------------------
+test-api:
+	@echo "🧪 Running API smoke tests..."
+	pytest tests/integration/test_api.py -v
+	@echo "✅ API smoke tests complete."
 
 # ---------------------------------------------------------------------------
 # lint
@@ -100,11 +122,11 @@ test-int:
 # ---------------------------------------------------------------------------
 lint:
 	@echo "🔍 Checking formatting (black)..."
-	black --check src/ tests/ orchestration/
+	black --check src/ tests/ orchestration/ api/
 	@echo "🔍 Checking import order (isort)..."
-	isort --check-only src/ tests/ orchestration/
+	isort --check-only src/ tests/ orchestration/ api/
 	@echo "🔍 Running linter (flake8)..."
-	flake8 src/ tests/ orchestration/ --max-line-length=120
+	flake8 src/ tests/ orchestration/ api/ --max-line-length=120
 	@echo "✅ All lint checks passed."
 
 # ---------------------------------------------------------------------------
@@ -114,9 +136,9 @@ lint:
 # ---------------------------------------------------------------------------
 format:
 	@echo "✏️  Formatting code with black..."
-	black src/ tests/ orchestration/
+	black src/ tests/ orchestration/ api/
 	@echo "✏️  Sorting imports with isort..."
-	isort src/ tests/ orchestration/
+	isort src/ tests/ orchestration/ api/
 	@echo "✅ Formatting complete."
 
 # ---------------------------------------------------------------------------
@@ -152,9 +174,11 @@ help:
 	@echo "  make install    Install all dependencies and git hooks"
 	@echo "  make run        Execute the full ETL pipeline"
 	@echo "  make profile    Install ydata-profiling and run with full HTML report"
+	@echo "  make api        Install API deps and start FastAPI on port 8000"
 	@echo "  make test       Run all tests with coverage report"
 	@echo "  make test-unit  Run unit tests only (fast)"
-	@echo "  make test-int   Run integration tests only"
+	@echo "  make test-int   Run pipeline integration tests only"
+	@echo "  make test-api   Run FastAPI smoke tests only"
 	@echo "  make lint       Check code style and formatting"
 	@echo "  make format     Auto-format code with black + isort"
 	@echo "  make clean      Remove generated files and caches"

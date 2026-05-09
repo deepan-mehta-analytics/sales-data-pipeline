@@ -1,0 +1,20 @@
+[flake8]
+# Maximum line length — matches black and isort settings in pyproject.toml.
+max-line-length = 120
+
+# Directories and files to skip entirely.
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    .eggs,
+    build,
+    dist,
+    .pytest_cache
+
+# Per-file overrides.
+# Test files intentionally contain long SQL literals, fixture data strings, and
+# assertion chains that are clearer unbroken than wrapped at 120 chars.
+# E501 (line too long) is suppressed for all test files to avoid noqa clutter.
+per-file-ignores =
+    tests/*:E501

@@ -10,10 +10,10 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 1.1.0 |
+| **Version** | 1.2.0 |
 | **GitHub Release** | [v1.1.0 — Observability & Quality Hardening](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.1.0) |
-| **Phase** | v1.1 shipped — observability complete; v1.2 FastAPI layer next |
-| **Latest commit** | `e74b64f6` — `docs: update PROJECT-STATUS.md — mark v1.1 shipped, latest commit hash` |
+| **Phase** | v1.2 in progress — FastAPI query layer + GHCR release workflow |
+| **Latest commit** | `e75d570c` — `docs: update PROJECT-STATUS.md — bump version to 1.1.0, add release link` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -207,18 +207,25 @@ Full medallion ETL pipeline with data quality gates, feature engineering, DuckDB
 
 ---
 
-### 🔜 v1.2 — Query API Layer *(Planned)*
+### 🔄 v1.2 — Query API Layer *(In Progress — 2026-05-09)*
 
-Expose the DuckDB gold tables as a REST API using FastAPI — mirrors the `bike-demand-ml-system` pattern and closes the loop from pipeline to consumer.
+Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docker images to GHCR.
 
-| Item | Description |
-|---|---|
-| `api/app.py` | FastAPI service with `/sales/regions`, `/sales/trends`, `/products/top`, `/segments` endpoints |
-| DuckDB connection pool | Thread-safe read-only connection pool for concurrent query handling |
-| Pydantic response models | Typed response schemas for each gold table endpoint |
-| Docker Compose update | Add `api` service alongside the existing `pipeline` service |
-| CI update | Add API smoke tests (httpx) to the CI workflow |
-| README update | Add "Query the API" section with curl examples |
+| Item | File | Status |
+|---|---|---|
+| FastAPI query layer | `api/app.py` | ✅ Done — 4 endpoints + `/health` |
+| DuckDB read-only dependency | `api/database.py` | ✅ Done — per-request connection, 503 guard |
+| Pydantic response schemas | `api/models.py` | ✅ Done — 4 typed models |
+| API requirements isolation | `requirements-api.txt` | ✅ Done — fastapi, uvicorn, httpx |
+| API smoke tests | `tests/integration/test_api.py` | ✅ Done — 14 tests |
+| Docker API stage | `Dockerfile` (stages 3 + 4) | ✅ Done — api-builder + api-runtime |
+| Docker Compose api service | `docker-compose.yml` | ✅ Done — port 8000, DuckDB volume |
+| GHCR release workflow | `.github/workflows/release.yml` | ✅ Done — pipeline + API images on v* tags |
+| CI extended | `.github/workflows/ci.yml` | ✅ Done — API tests + api/ lint |
+| Makefile targets | `Makefile` | ✅ Done — make api, make test-api |
+| README update | `README.md` | ⬜ Pending |
+| CHANGELOG entry | `CHANGELOG.md` | ✅ Done |
+| v1.2.0 GitHub release | — | ⬜ Pending |
 
 ---
 

@@ -66,24 +66,25 @@ jobs:
           python -m pip install --upgrade pip          # Upgrade pip itself first
           pip install -r requirements.txt              # Install production dependencies
           pip install -r requirements-dev.txt          # Install testing + linting tools
+          pip install -r requirements-api.txt          # Install FastAPI + httpx for API tests
 
       # -----------------------------------------------------------------------
       # Step 5: Check code formatting with black (--check mode: no changes made)
       # -----------------------------------------------------------------------
       - name: Check formatting (black)
-        run: black --check src/ tests/ orchestration/   # Fail if any file is not black-formatted
+        run: black --check src/ tests/ orchestration/ api/   # Fail if any file is not black-formatted
 
       # -----------------------------------------------------------------------
       # Step 6: Check import ordering with isort (--check-only mode)
       # -----------------------------------------------------------------------
       - name: Check import order (isort)
-        run: isort --check-only src/ tests/ orchestration/   # Fail if imports are not sorted
+        run: isort --check-only src/ tests/ orchestration/ api/   # Fail if imports are not sorted
 
       # -----------------------------------------------------------------------
       # Step 7: Run flake8 linter to catch PEP 8 style violations and errors
       # -----------------------------------------------------------------------
       - name: Lint with flake8
-        run: flake8 src tests orchestration --max-line-length=120 --exclude=__pycache__,*.pyc
+        run: flake8 src tests orchestration api --max-line-length=120 --exclude=__pycache__,*.pyc
       # -----------------------------------------------------------------------
       # Step 8: Run unit tests with coverage measurement
       # --cov=src:         measure coverage for the src/ package
@@ -100,19 +101,23 @@ jobs:
             --cov-report=xml:coverage.xml
 
       # -----------------------------------------------------------------------
-      # Step 9: Run integration tests (against the sample bronze CSV)
+      # Step 9: Run pipeline integration tests (against the sample bronze CSV)
       # -----------------------------------------------------------------------
-      - name: Run integration tests
+      - name: Run pipeline integration tests
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: pytest tests/integration/ -v
+        run: pytest tests/integration/test_pipeline.py -v
 
       # -----------------------------------------------------------------------
-      # Step 10: Upload the coverage XML as a GitHub Actions artifact so it
-      # can be inspected or forwarded to Codecov / SonarCloud.
+      # Step 10: Run API smoke tests (test DuckDB created in-fixture; no real DB needed)
       # -----------------------------------------------------------------------
+      - name: Run API smoke tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: pytest tests/integration/test_api.py -v
+
       # -----------------------------------------------------------------------
-      # Step 10: Upload coverage to Codecov for badge and trend tracking.
+      # Step 11: Upload coverage to Codecov for badge and trend tracking.
       # Requires CODECOV_TOKEN secret set in the repository settings:
       #   GitHub repo → Settings → Secrets → Actions → New repository secret
       #   Name: CODECOV_TOKEN  Value: <token from codecov.io>
@@ -126,7 +131,7 @@ jobs:
           fail_ci_if_error: false                # Do not fail CI if Codecov upload fails
 
       # -----------------------------------------------------------------------
-      # Step 11: Upload the coverage XML as a GitHub Actions artifact so it
+      # Step 12: Upload the coverage XML as a GitHub Actions artifact so it
       # can be inspected or forwarded to SonarCloud if needed.
       # -----------------------------------------------------------------------
       - name: Upload coverage report artifact
