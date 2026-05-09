@@ -20,8 +20,8 @@ It automates data cleaning, validation, feature engineering, and aggregation, an
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/blob/main/LICENSE)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Query_API-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![GHCR](https://img.shields.io/badge/GHCR-Docker_Published-2496ED?style=for-the-badge&logo=github&logoColor=white)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/pkgs/container/sales-data-pipeline)
-[![v1.2.0](https://img.shields.io/badge/Release-v1.2.0-success?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.0)
-[![Status](https://img.shields.io/badge/Status-v1.2_In_Development-blue?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases)
+[![v1.2.2](https://img.shields.io/badge/Release-v1.2.2-success?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2)
+[![Status](https://img.shields.io/badge/Status-v1.2_Shipped-brightgreen?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases)
 
 ---
 
