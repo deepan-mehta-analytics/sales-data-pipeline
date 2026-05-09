@@ -17,6 +17,7 @@ It automates data cleaning, validation, feature engineering, and aggregation, an
 [![Docker](https://img.shields.io/badge/Docker-Containerised-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/features/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/deepan-mehta-analytics/sales-data-pipeline?style=for-the-badge&logo=codecov)](https://codecov.io/gh/deepan-mehta-analytics/sales-data-pipeline)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/blob/main/LICENSE)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Query_API-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![GHCR](https://img.shields.io/badge/GHCR-Docker_Published-2496ED?style=for-the-badge&logo=github&logoColor=white)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/pkgs/container/sales-data-pipeline)
 [![v1.2.0](https://img.shields.io/badge/Release-v1.2.0-success?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.0)
@@ -494,6 +495,16 @@ See [PROJECT-STATUS.md](PROJECT-STATUS.md) for full roadmap detail.
 - 793 unique customers · 1,850 unique products
 - Categories: Furniture, Office Supplies, Technology
 - US Regions: East, West, Central, South
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for full terms.
+
+You are free to use, copy, modify, and distribute this project for any purpose, commercial or otherwise, provided the original copyright notice is retained.
+
+Copyright © 2024–2026 Deepan Mehta
 
 ---
 
