@@ -25,7 +25,8 @@ name: Release — Build and Push to GHCR   # Workflow name shown in the GitHub A
 on:
   push:
     tags:
-      - "v*.*.*"   # Trigger on any semantic version tag (v1.2.0, v2.0.0, etc.)
+      - "v*.*.*"         # Trigger on any semantic version tag (v1.2.0, v2.0.0, etc.)
+  workflow_dispatch:     # Allow manual trigger from the GitHub Actions UI
 
 jobs:
 

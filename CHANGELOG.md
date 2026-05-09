@@ -7,6 +7,14 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.1] — 2026-05-09
+
+### Fixed
+- `Dockerfile` — removed inline `#` comments from `ENV`, `COPY`, and `RUN` instructions; Docker BuildKit rejects inline comments on instruction lines with "can't find = in '#'" parse error
+- `.github/workflows/release.yml` — added `workflow_dispatch` trigger for manual re-runs
+
+---
+
 ## [1.2.0] — 2026-05-09
 
 ### Added
