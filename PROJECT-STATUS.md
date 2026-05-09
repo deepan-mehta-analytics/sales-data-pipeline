@@ -13,7 +13,7 @@
 | **Version** | 1.0.0 |
 | **GitHub Release** | [v1.0.0 — End-to-End Superstore Sales ETL Pipeline MVP](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.0.0) |
 | **Phase** | Production-ready — all pipeline phases complete |
-| **Latest commit** | `9eb21d44` — `docs: add PROJECT-STATUS.md with versioned release roadmap` |
+| **Latest commit** | `4f756231` — `feat(v1.1): add observability — Codecov, data profiling, drift detection` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -192,14 +192,18 @@ Full medallion ETL pipeline with data quality gates, feature engineering, DuckDB
 
 ---
 
-### 🔜 v1.1 — Observability & Quality Hardening *(Planned)*
+### ✅ v1.1 — Observability & Quality Hardening *(Shipped — 2026-05-09)*
 
-| Item | Description |
-|---|---|
-| Codecov integration | Wire `coverage.xml` to Codecov; add coverage badge to README |
-| Data profiling report | Generate an HTML quality summary (pandas-profiling / ydata-profiling) after each pipeline run |
-| Statistical drift detection | Compare key metric distributions between runs; warn when drift exceeds threshold |
-| Expanded quality checks | Row-count delta check between runs; column-level cardinality guard for categoricals |
+| Item | File | Status |
+|---|---|---|
+| Codecov integration | `.github/workflows/ci.yml` | ✅ Done — `codecov/codecov-action@v4` wired; badge in README |
+| Data profiling HTML report | `src/quality/profiler.py` | ✅ Done — ydata-profiling with pandas-describe fallback |
+| Statistical drift detection | `src/quality/drift_detector.py` | ✅ Done — 9 metrics tracked; WARNING on >5% shift |
+| Pipeline wiring | `orchestration/pipeline.py` | ✅ Done — stages 7 (drift) + 8 (profile) after load |
+| Profiling artifact in CI | `.github/workflows/pipeline.yml` | ✅ Done — HTML report uploaded after each daily run |
+| Optional dep isolation | `requirements-profiling.txt` | ✅ Done — ydata-profiling separated; core Docker image stays lean |
+
+> **One manual step required:** Add `CODECOV_TOKEN` secret to the repo (Settings → Secrets → Actions) using the token from [codecov.io](https://codecov.io/gh/deepan-mehta-analytics/sales-data-pipeline) to activate the coverage badge.
 
 ---
 
