@@ -132,6 +132,8 @@ omit     = [                  # Exclude files that do not need coverage measurem
     "*/tests/*",
     "*/__init__.py",
     "*/conftest.py",
+    "src/quality/profiler.py",        # Requires ydata-profiling (requirements-profiling.txt, not installed in CI)
+    "src/quality/drift_detector.py",  # Requires a reference JSON generated at first run — absent in fresh CI
 ]
 
 [tool.coverage.report]
