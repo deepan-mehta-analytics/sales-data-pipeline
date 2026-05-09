@@ -11,9 +11,9 @@
 | Field | Value |
 |---|---|
 | **Version** | 1.2.0 |
-| **GitHub Release** | [v1.1.0 — Observability & Quality Hardening](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.1.0) |
-| **Phase** | v1.2 in progress — FastAPI query layer + GHCR release workflow |
-| **Latest commit** | `e75d570c` — `docs: update PROJECT-STATUS.md — bump version to 1.1.0, add release link` |
+| **GitHub Release** | [v1.2.0 — FastAPI Query Layer & GHCR Docker Publishing](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.0) |
+| **Phase** | v1.2 shipped — REST query layer, GHCR publishing, 105 tests |
+| **Latest commit** | `b93d43bd` — `docs: add Query API section, update badges and roadmap for v1.2` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -207,7 +207,7 @@ Full medallion ETL pipeline with data quality gates, feature engineering, DuckDB
 
 ---
 
-### 🔄 v1.2 — Query API Layer *(In Progress — 2026-05-09)*
+### ✅ v1.2 — Query API Layer *(Shipped — 2026-05-09)*
 
 Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docker images to GHCR.
 
@@ -223,9 +223,9 @@ Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docke
 | GHCR release workflow | `.github/workflows/release.yml` | ✅ Done — pipeline + API images on v* tags |
 | CI extended | `.github/workflows/ci.yml` | ✅ Done — API tests + api/ lint |
 | Makefile targets | `Makefile` | ✅ Done — make api, make test-api |
-| README update | `README.md` | ⬜ Pending |
+| README update | `README.md` | ✅ Done — "Query the API" section with curl examples |
 | CHANGELOG entry | `CHANGELOG.md` | ✅ Done |
-| v1.2.0 GitHub release | — | ⬜ Pending |
+| v1.2.0 GitHub release | — | ✅ Done |
 
 ---
 
