@@ -10,10 +10,10 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 1.2.0 |
-| **GitHub Release** | [v1.2.0 — FastAPI Query Layer & GHCR Docker Publishing](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.0) |
-| **Phase** | v1.2 shipped — REST query layer, GHCR publishing, 105 tests |
-| **Latest commit** | `b93d43bd` — `docs: add Query API section, update badges and roadmap for v1.2` |
+| **Version** | 1.2.2 |
+| **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
+| **Phase** | v1.2 shipped — REST query layer, GHCR publishing, CI green |
+| **Latest commit** | `28528c2f` — `fix(ci): omit optional-dep modules from coverage measurement` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |

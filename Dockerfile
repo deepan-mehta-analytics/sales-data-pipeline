@@ -52,7 +52,7 @@ FROM python:3.11-slim AS runtime
 # Set metadata labels visible via 'docker inspect'.
 LABEL maintainer="Deepan Mehta"
 LABEL description="Superstore Sales Data Pipeline"
-LABEL version="1.2.0"
+LABEL version="1.2.2"
 
 # Set the working directory for the pipeline.
 WORKDIR /app
@@ -114,7 +114,7 @@ FROM python:3.11-slim AS api-runtime
 # Set metadata labels for the API image.
 LABEL maintainer="Deepan Mehta"
 LABEL description="Superstore Sales Query API"
-LABEL version="1.2.0"
+LABEL version="1.2.2"
 
 # Set the working directory for the API service.
 WORKDIR /app

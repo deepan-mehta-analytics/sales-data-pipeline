@@ -21,7 +21,7 @@ build-backend = "setuptools.backends.legacy:build"
 # Project metadata — displayed on PyPI and in pip show output
 # ---------------------------------------------------------------------------
 name        = "sales-data-pipeline"    # Package name used by pip
-version     = "1.0.0"                  # Semantic version: MAJOR.MINOR.PATCH
+version     = "1.2.2"                  # Semantic version: MAJOR.MINOR.PATCH
 description = "End-to-end ETL pipeline for the Kaggle Superstore Sales dataset"
 readme      = "README.md"              # Long description loaded from the README
 requires-python = ">=3.10"             # Minimum Python version supported
