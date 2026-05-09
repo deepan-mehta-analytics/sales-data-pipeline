@@ -10,10 +10,10 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 1.0.0 |
-| **GitHub Release** | [v1.0.0 — End-to-End Superstore Sales ETL Pipeline MVP](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.0.0) |
-| **Phase** | Production-ready — all pipeline phases complete |
-| **Latest commit** | `4f756231` — `feat(v1.1): add observability — Codecov, data profiling, drift detection` |
+| **Version** | 1.1.0 |
+| **GitHub Release** | [v1.1.0 — Observability & Quality Hardening](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.1.0) |
+| **Phase** | v1.1 shipped — observability complete; v1.2 FastAPI layer next |
+| **Latest commit** | `e74b64f6` — `docs: update PROJECT-STATUS.md — mark v1.1 shipped, latest commit hash` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
