@@ -151,3 +151,27 @@ EXPOSE 8000
 
 # Start the FastAPI application via uvicorn.
 CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+
+# ---------------------------------------------------------------------------
+# Stage 5: Airflow Runtime
+# Extends the official Apache Airflow image with this repo's own runtime
+# dependencies (pandas, duckdb, pyarrow, pyyaml) so DAG tasks can import
+# directly from src/. Project source, config, and DAG files are mounted as
+# volumes at container start (see docker-compose.yml) rather than copied in
+# here, so local edits are picked up without an image rebuild.
+# ---------------------------------------------------------------------------
+FROM apache/airflow:3.3.0-python3.11 AS airflow-runtime
+
+# Run pip installs as the image's non-root 'airflow' user (its documented convention).
+USER airflow
+
+# Copy only the dependency manifest so Docker layer caching skips the
+# install step unless requirements.txt actually changes.
+COPY requirements.txt /tmp/requirements.txt
+
+# Install this repo's runtime deps against Airflow's own constraints file so
+# pip's resolver cannot silently break Airflow's pinned dependency graph —
+# this is the pattern Apache's own docs recommend for extending the image.
+RUN pip install --no-cache-dir -r /tmp/requirements.txt \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.11.txt"
