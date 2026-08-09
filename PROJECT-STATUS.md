@@ -13,7 +13,7 @@
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
 | **Phase** | v2.0 in progress — Airflow DAG shipped; BigQuery, incremental load, MLflow tracking pending |
-| **Latest commit** | `cc68e5e9` — `fix(feature-engineer): cast shipping_days to float64 before np.select comparisons` |
+| **Latest commit** | `cf4ce5ca` — `fix(feature-engineer): cast Quantity once for both np.where operands` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -98,13 +98,13 @@
 | File | Type | Tests | Coverage scope |
 |---|---|---|---|
 | `tests/unit/test_cleaner.py` | Unit | 23 | `src/transform/cleaner.py` |
-| `tests/unit/test_feature_engineer.py` | Unit | 21 | `src/transform/feature_engineer.py` |
+| `tests/unit/test_feature_engineer.py` | Unit | 22 | `src/transform/feature_engineer.py` |
 | `tests/unit/test_validators.py` | Unit | 20 | `src/quality/validators.py` |
 | `tests/unit/test_extractor.py` | Unit | 16 | `src/extract/extractor.py` |
 | `tests/unit/test_path_utils.py` | Unit | 7 | `dags/path_utils.py` (v2.0) |
 | `tests/integration/test_pipeline.py` | Integration | 12 | Full end-to-end pipeline |
 | `tests/integration/test_api.py` | Integration | 15 | FastAPI query layer smoke tests |
-| **Total** | | **114** | |
+| **Total** | | **115** | |
 
 **Coverage threshold:** 70% minimum (enforced in `pyproject.toml`)
 
@@ -161,20 +161,20 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-09 — see `git log` for full history, 49 commits total)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-09 — see `git log` for full history, 54 commits total)*
 
 | Hash | Message |
 |---|---|
+| `cf4ce5ca` | fix(feature-engineer): cast Quantity once for both np.where operands |
+| `8a3b72a6` | fix(docker): mount project logs volume, narrow airflow-init idempotency |
+| `c59eaf00` | fix(dag): sync quality-gate, drift, and profiling flags with config.yaml |
+| `58a42d06` | docs: fix remaining stale product-performance count in docs/ |
+| `1ebcd5b9` | docs: document the Airflow DAG (Phase 6 / v2.0) |
 | `cc68e5e9` | fix(feature-engineer): cast shipping_days to float64 before np.select comparisons |
 | `65162adb` | fix(feature-engineer): cast Quantity to float64 before per-unit division |
 | `7cf4e21e` | fix(airflow): prevent run_id collapse-to-root and add regression tests |
 | `51d9a6a0` | fix(airflow): prevent path traversal in DAG scratch-dir resolution |
 | `2b10b219` | feat(airflow): add sales_pipeline_dag wrapping the ETL stages |
-| `61cec4f8` | fix(logger): gracefully fall back to console logging when logs directory unavailable |
-| `5e90c797` | fix(airflow): fail airflow-init on migration error instead of masking it |
-| `ec74c832` | feat(airflow): add self-hosted Airflow 3.x stack to docker-compose |
-| `205ce5b5` | feat(airflow): add airflow-runtime Docker stage |
-| `0cfe582d` | chore: gitignore docs/superpowers/ internal design docs |
 
 ---
 

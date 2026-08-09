@@ -160,7 +160,7 @@ sales-data-pipeline/
 │
 ├── tests/
 │   ├── conftest.py                 ← Shared pytest fixtures
-│   ├── unit/                       ← Fast, isolated unit tests (87 cases)
+│   ├── unit/                       ← Fast, isolated unit tests (88 cases)
 │   └── integration/                ← Full end-to-end pipeline test
 │
 ├── Dockerfile                      ← Multi-stage container build (incl. v2.0 airflow-runtime stage)
