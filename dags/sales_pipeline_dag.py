@@ -15,6 +15,7 @@
 # Or from the UI:    http://localhost:8080/dags/sales_pipeline_dag
 # =============================================================================
 
+import re  # Sanitize run_id into a single safe path segment
 from datetime import datetime  # DAG start_date (required by Airflow, not used for scheduling)
 from pathlib import Path  # Cross-platform path handling for intermediate Parquet files
 
@@ -39,7 +40,17 @@ AIRFLOW_TMP_ROOT = PROJECT_ROOT / "data" / "airflow_tmp"  # Gitignored — see .
 
 def _tmp_dir(run_id: str) -> Path:
     """Return (creating if needed) the scratch directory for one DAG run."""
-    run_dir = AIRFLOW_TMP_ROOT / run_id.replace(":", "_")  # ':' is unsafe in some filesystem paths
+    # run_id can be caller-supplied (Airflow's REST API accepts an optional dag_run_id
+    # override), so it cannot be trusted as a bare path segment. Collapse anything that
+    # isn't alphanumeric/dash/underscore/dot to '_' — this removes path separators and
+    # neutralizes '..' as a traversal token, but a value like '.' or '..' alone can still
+    # survive the collapse, so the resolved path is also verified to stay inside
+    # AIRFLOW_TMP_ROOT before use.
+    safe_run_id = re.sub(r"[^A-Za-z0-9_.-]", "_", run_id)  # sanitize to a single safe segment
+    root = AIRFLOW_TMP_ROOT.resolve()  # normalized absolute root for containment check
+    run_dir = (AIRFLOW_TMP_ROOT / safe_run_id).resolve()  # normalized absolute candidate path
+    if not run_dir.is_relative_to(root):  # reject anything that escapes the scratch root
+        raise ValueError(f"Unsafe run_id resolves outside AIRFLOW_TMP_ROOT: {run_id!r}")
     run_dir.mkdir(parents=True, exist_ok=True)  # Create the run-scoped scratch directory
     return run_dir  # Hand back the resolved path
 
