@@ -142,26 +142,36 @@ def add_financial_features(df: pd.DataFrame) -> pd.DataFrame:
     # absolute discount amount is still informative for margin analysis.
     df["discount_amount"] = (df["Sales"] * df["Discount"]).round(2)
 
+    # Quantity is cast to float64 once, up front, and reused for BOTH the np.where
+    # condition and the division operand below. Casting only the value-branch (as
+    # the original fix did) is not enough: the condition `df["Quantity"] != 0` on
+    # the nullable "Int64" dtype produces pandas' nullable "boolean" dtype, and a
+    # pd.NA entry in that condition array raises "TypeError: boolean value of NA
+    # is ambiguous" inside np.where regardless of the value branch's dtype. A
+    # pd.NA Quantity is reachable in practice: src/transform/cleaner.py casts
+    # Quantity via pd.to_numeric(errors="coerce"), so a bad source value becomes
+    # pd.NA here. Hoisting the cast once also removes the previous duplicated
+    # .astype("float64") call (one per division).
+    qty_f = df["Quantity"].astype("float64")  # Native float64 Quantity, used for both branches below
+
     # revenue_per_unit: average revenue generated per unit sold.
     # Formula: Sales / Quantity
-    # np.where guards against division by zero when Quantity == 0.
-    # Quantity is cast to float64 before dividing so the division always runs
-    # on a native numpy float array — nullable "Int64" Quantity otherwise makes
-    # np.where's result dtype depend on the installed pandas/numpy version,
-    # which breaks .round(2) on older pinned versions (e.g. Airflow's image).
+    # np.where guards against division by zero when Quantity == 0 (a pd.NA
+    # Quantity does not crash after the float64 cast above, but is not caught
+    # by this guard either — see the qty_f comment: NaN != 0 is True, so a NA
+    # row takes the division branch and yields NaN, not the 0.0 default).
     df["revenue_per_unit"] = np.where(
-        df["Quantity"] != 0,  # Condition: at least one unit sold
-        df["Sales"] / df["Quantity"].astype("float64"),  # True: divide revenue by quantity
+        qty_f != 0,  # Condition: at least one unit sold (float64 comparison — see note above)
+        df["Sales"] / qty_f,  # True: divide revenue by quantity
         0.0,  # False: default to 0 for safety
     ).round(2)
 
     # profit_per_unit: average net profit (or loss) per unit sold.
     # Formula: Profit / Quantity
     # A negative value means this product is sold at a loss per unit.
-    # Quantity is cast to float64 for the same dtype-stability reason as above.
     df["profit_per_unit"] = np.where(
-        df["Quantity"] != 0,  # Condition: at least one unit sold
-        df["Profit"] / df["Quantity"].astype("float64"),  # True: divide profit by quantity
+        qty_f != 0,  # Condition: at least one unit sold (float64 comparison — see note above)
+        df["Profit"] / qty_f,  # True: divide profit by quantity
         0.0,  # False: default to 0 for safety
     ).round(2)
 

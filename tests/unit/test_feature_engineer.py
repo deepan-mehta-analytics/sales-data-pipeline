@@ -146,6 +146,44 @@ class TestAddFinancialFeatures:
         assert result["revenue_per_unit"].iloc[2] == 0.0, "Zero quantity must default revenue_per_unit to 0.0"
         assert result["profit_per_unit"].iloc[2] == 0.0, "Zero quantity must default profit_per_unit to 0.0"
 
+    def test_per_unit_columns_with_na_quantity(self):
+        """
+        Regression test: a pd.NA entry in a nullable 'Int64' Quantity column must
+        not crash add_financial_features().
+
+        src/transform/cleaner.py casts Quantity via pd.to_numeric(errors="coerce"),
+        so a bad source value becomes pd.NA. Before this fix, np.where's condition
+        operand (`df["Quantity"] != 0`) stayed on the nullable Int64/boolean dtype
+        even though the value-branch operand was cast to float64, and a pd.NA in
+        that condition raised "TypeError: boolean value of NA is ambiguous". The
+        fix hoists a single float64 cast (qty_f) and uses it for both the
+        condition and the division, matching the pattern already used in
+        add_categorical_features's shipping_days handling.
+
+        Once cast to float64, pd.NA becomes np.nan, and IEEE754 defines
+        `nan != 0` as True — so the NA row takes the *division* branch (not the
+        zero-quantity default) and divides by NaN, yielding NaN. That NaN-not-zero
+        outcome is a pre-existing property of this np.where/NaN interaction, not
+        something this fix changes; the fix's scope is eliminating the crash.
+        """
+        df = pd.DataFrame(
+            {
+                "Sales": [100.0, 50.0],  # Revenue for 2 rows
+                "Profit": [20.0, -10.0],  # Profit for 2 rows, matching Sales rows
+                "Quantity": pd.array([4, None], dtype="Int64"),  # Row 1 has a missing (pd.NA) Quantity
+                "Discount": [0.1, 0.0],  # Discount fraction per row
+            }
+        )
+        result = add_financial_features(df)  # Must not raise TypeError
+
+        # Row 0: Quantity=4 (non-zero, non-NA) → normal division.
+        assert result["revenue_per_unit"].iloc[0] == 25.0, "100.0 / 4 must equal 25.0"
+        assert result["profit_per_unit"].iloc[0] == 5.0, "20.0 / 4 must equal 5.0"
+
+        # Row 1: Quantity=pd.NA → division by NaN yields NaN (see docstring); no crash either way.
+        assert pd.isna(result["revenue_per_unit"].iloc[1]), "NA quantity must yield NaN, not raise, for revenue_per_unit"
+        assert pd.isna(result["profit_per_unit"].iloc[1]), "NA quantity must yield NaN, not raise, for profit_per_unit"
+
 
 class TestAddCategoricalFeatures:
     """Tests for the add_categorical_features function."""
