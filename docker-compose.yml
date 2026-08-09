@@ -181,6 +181,7 @@ services:
       - |
         mkdir -v -p /opt/airflow/logs /opt/airflow/dags   # Ensure Airflow's own dirs exist
         chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs /opt/airflow/dags  # Fix ownership for the airflow user
+        set -e                                             # Stop immediately on a real failure (e.g. migration) instead of falling through to the '|| true' below
         airflow db migrate                                 # Create/upgrade Airflow's metadata DB schema
         airflow users create \
           --username "${_AIRFLOW_WWW_USER_USERNAME:-airflow}" \
