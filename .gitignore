@@ -102,6 +102,12 @@ data/airflow_tmp/
 .env
 
 # -----------------------------------------------------------------------------
+# GCP credentials (v2.0 BigQuery sync) — NEVER commit the real key.
+# -----------------------------------------------------------------------------
+credentials/*.json
+!credentials/.gitkeep
+
+# -----------------------------------------------------------------------------
 # Internal brainstorming/design docs (superpowers skill workflow)
 # Working drafts and specs — not meant for the public repo. Already covered by
 # a machine-level global gitignore, but pinned here too so the rule travels
