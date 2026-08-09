@@ -152,6 +152,14 @@ def get_logger(name: str) -> logging.Logger:
     # Resolve the log file path from config, anchored at the project root.
     log_file = PROJECT_ROOT / config.get("paths", {}).get("logs", "logs/pipeline.log")
 
+    # Prevent log records from bubbling up to the root logger.
+    # Without this, records would be printed twice if the root logger also
+    # has a handler (e.g. basicConfig was called elsewhere). Set before the
+    # try/except below (rather than after) so there is no window between
+    # attaching handlers and disabling propagation in which a record could
+    # theoretically be double-emitted via a root logger handler.
+    logger.propagate = False
+
     # Try to create the logs/ directory and attach a file handler.
     # If this fails (e.g. permission denied in a sandboxed environment),
     # fall back to console-only logging.
@@ -172,11 +180,8 @@ def get_logger(name: str) -> logging.Logger:
         # If we can't create the logs directory, just use console logging.
         # This allows the pipeline to run in constrained environments like Docker.
         logger.addHandler(console_handler)  # Console handler only
-        logger.info(f"Could not create logs directory at {log_file.parent}; using console logging only")
-
-    # Prevent log records from bubbling up to the root logger.
-    # Without this, records would be printed twice if the root logger also
-    # has a handler (e.g. basicConfig was called elsewhere).
-    logger.propagate = False
+        # WARNING (not INFO): this is a silent degradation losing the durable audit
+        # trail, and would be invisible if config.logging.level is ever set to WARNING.
+        logger.warning(f"Could not create logs directory at {log_file.parent}; using console logging only")
 
     return logger  # Return the fully configured logger to the caller

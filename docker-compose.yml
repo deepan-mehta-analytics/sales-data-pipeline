@@ -59,6 +59,7 @@ x-airflow-common:
     - ./data:/opt/airflow/project/data                # Bronze CSV in, Silver/Gold Parquet + airflow_tmp/ scratch out
     - ./database:/opt/airflow/project/database        # DuckDB output — same file the API service reads
     - ./reports:/opt/airflow/project/reports          # Profiling HTML report output
+    - ./logs:/opt/airflow/project/logs                # This project's JSON audit log (src/utils/logger.py), distinct from the airflow-logs volume above
   user: "${AIRFLOW_UID:-50000}:0"   # Matches the official image's non-root user
   depends_on:
     &airflow-common-depends-on
@@ -181,13 +182,16 @@ services:
       - |
         mkdir -v -p /opt/airflow/logs /opt/airflow/dags   # Ensure Airflow's own dirs exist
         chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs /opt/airflow/dags  # Fix ownership for the airflow user
-        set -e                                             # Stop immediately on a real failure (e.g. migration) instead of falling through to the '|| true' below
+        set -eo pipefail                                    # Stop on a real failure, and make `cmd | tee` report cmd's exit code, not tee's
         airflow db migrate                                 # Create/upgrade Airflow's metadata DB schema
         airflow users create \
           --username "${_AIRFLOW_WWW_USER_USERNAME:-airflow}" \
           --password "${_AIRFLOW_WWW_USER_PASSWORD:-airflow}" \
           --firstname Admin --lastname User --role Admin \
-          --email admin@example.com || true               # '|| true': don't fail re-runs if the user already exists
+          --email admin@example.com 2>&1 | tee /tmp/airflow-user-create.log || grep -qi "already exist" /tmp/airflow-user-create.log
+          # Narrowed idempotency: with pipefail, the pipe's exit code is `airflow users create`'s own code (not tee's).
+          # Only the "user already exists" case (re-runs of `docker compose up`) is swallowed by the grep fallback;
+          # any other first-run failure (bad config, DB issue) now propagates and fails the airflow-init service.
     user: "0:0"   # Runs as root only for this one-shot init (dir ownership fix); every other service stays non-root
     environment:
       <<: *airflow-common-env
