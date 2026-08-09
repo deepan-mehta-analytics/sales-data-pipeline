@@ -7,6 +7,34 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- `dags/sales_pipeline_dag.py` — Airflow 3.x DAG wrapping all 8 pipeline stages (extract, quality ×2,
+  clean, engineer, load, drift, profile) as independently retryable TaskFlow API tasks
+- `dags/path_utils.py` — airflow-independent, unit-tested run_id sanitization and containment-check
+  helper used by the DAG's scratch-directory resolution
+- `Dockerfile` — `airflow-runtime` stage (Stage 5) extending the official Airflow 3.3.0 image with
+  this repo's dependencies
+- `docker-compose.yml` — Airflow services (`postgres`, `airflow-init`, `airflow-apiserver`,
+  `airflow-scheduler`, `airflow-dag-processor`), LocalExecutor, no Celery/Redis needed
+- `Makefile` — `make airflow-init`, `make airflow-up`, `make airflow-down`
+- `.env.example` — Airflow local-dev credentials template
+
+### Fixed
+- `dags/sales_pipeline_dag.py` — DAG scratch-directory resolution now rejects a `run_id` that
+  sanitizes to the tmp root itself or resolves outside it via path traversal (Airflow's REST API
+  allows a caller-supplied `run_id` override)
+- `src/utils/logger.py` — falls back to console-only logging when the logs directory can't be
+  created (e.g. in a container without a writable logs volume), instead of crashing on import
+- `src/transform/feature_engineer.py` — `add_financial_features()` and `add_categorical_features()`
+  now cast nullable `Int64` columns (`Quantity`, `shipping_days`) to `float64` before feeding them
+  into `np.where`/`np.select`, so financial and categorical feature calculation no longer depends on
+  which pandas/numpy version is installed (surfaced when the Airflow container's pinned, older
+  pandas/numpy produced a different result dtype than this project's normal environment)
+
+---
+
 ## [1.2.2] — 2026-05-09
 
 ### Fixed

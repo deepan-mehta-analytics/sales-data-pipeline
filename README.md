@@ -21,7 +21,8 @@ It automates data cleaning, validation, feature engineering, and aggregation, an
 [![FastAPI](https://img.shields.io/badge/FastAPI-Query_API-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![GHCR](https://img.shields.io/badge/GHCR-Docker_Published-2496ED?style=for-the-badge&logo=github&logoColor=white)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/pkgs/container/sales-data-pipeline)
 [![v1.2.2](https://img.shields.io/badge/Release-v1.2.2-success?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2)
-[![Status](https://img.shields.io/badge/Status-v1.2_Shipped-brightgreen?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases)
+[![Status](https://img.shields.io/badge/Status-v2.0_In_Progress-yellow?style=for-the-badge)](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases)
+[![Airflow](https://img.shields.io/badge/Airflow-3.3.0-017CEE?style=for-the-badge&logo=apacheairflow&logoColor=white)](https://airflow.apache.org/)
 
 ---
 
@@ -42,6 +43,7 @@ It implements:
 - **Drift detection** *(v1.1)* — Statistical drift check comparing key metrics against prior-run reference
 - **REST query API** *(v1.2)* — FastAPI layer exposing all five DuckDB gold tables with typed Pydantic responses
 - **GHCR Docker publishing** *(v1.2)* — Pipeline and API images published to GitHub Container Registry on every version tag
+- **Self-hosted Airflow orchestration** *(v2.0)* — DAG wrapping all 8 pipeline stages as independently retryable, independently observable tasks, alongside the existing scheduled CI run
 
 ---
 
@@ -60,6 +62,7 @@ It implements:
 | Query API | FastAPI + uvicorn | REST layer over DuckDB gold tables (v1.2) |
 | API Validation | Pydantic v2 | Typed response schemas for all endpoints |
 | Container Registry | GitHub Container Registry | Versioned Docker image publishing on release tags (v1.2) |
+| Orchestration | Apache Airflow 3.x (self-hosted) | DAG orchestration of all 8 pipeline stages, LocalExecutor (v2.0) |
 | Code Quality | black + isort + flake8 | Formatting, import sorting, and linting |
 | CI/CD | GitHub Actions | Automated test and pipeline execution |
 | Containers | Docker + Compose | Reproducible execution environment |
@@ -110,15 +113,20 @@ sales-data-pipeline/
 ├── data/
 │   ├── bronze/                     ← Place Kaggle CSV here
 │   ├── silver/                     ← Cleaned Parquet (pipeline output)
-│   └── gold/                       ← Aggregation Parquets (pipeline output)
-│       ├── sales_by_region.parquet
-│       ├── sales_by_category.parquet
-│       ├── customer_segments.parquet
-│       ├── monthly_trends.parquet
-│       └── product_performance.parquet
+│   ├── gold/                       ← Aggregation Parquets (pipeline output)
+│   │   ├── sales_by_region.parquet
+│   │   ├── sales_by_category.parquet
+│   │   ├── customer_segments.parquet
+│   │   ├── monthly_trends.parquet
+│   │   └── product_performance.parquet
+│   └── airflow_tmp/                ← v2.0: gitignored DAG-run scratch Parquet hand-offs
 │
 ├── database/
 │   └── superstore.duckdb           ← OLAP database (pipeline output)
+│
+├── dags/
+│   ├── sales_pipeline_dag.py       ← v2.0: Airflow DAG wrapping all 8 pipeline stages
+│   └── path_utils.py               ← v2.0: airflow-independent run_id sanitization/containment
 │
 ├── docs/
 │   ├── architecture.md             ← DAG diagram + design decisions
@@ -152,11 +160,12 @@ sales-data-pipeline/
 │
 ├── tests/
 │   ├── conftest.py                 ← Shared pytest fixtures
-│   ├── unit/                       ← Fast, isolated unit tests (90 cases)
+│   ├── unit/                       ← Fast, isolated unit tests (87 cases)
 │   └── integration/                ← Full end-to-end pipeline test
 │
-├── Dockerfile                      ← Multi-stage container build
-├── docker-compose.yml              ← Local containerised execution
+├── Dockerfile                      ← Multi-stage container build (incl. v2.0 airflow-runtime stage)
+├── docker-compose.yml              ← Local containerised execution + v2.0 Airflow services
+├── .env.example                    ← v2.0: Airflow local-dev credentials template
 ├── Makefile                        ← Developer convenience commands
 ├── pyproject.toml                  ← Packaging + tool configuration
 ├── requirements.txt                ← Production dependencies
@@ -342,6 +351,39 @@ docker pull ghcr.io/deepan-mehta-analytics/sales-data-pipeline-api:latest
 
 ---
 
+## 🌬️ Orchestration (Airflow) *(v2.0)*
+
+The pipeline can also run as a self-hosted Apache Airflow 3.x DAG — each stage becomes an
+independently retryable, independently observable task instead of one long script. This runs
+alongside (not instead of) the daily GitHub Actions cron in `.github/workflows/pipeline.yml`.
+
+```bash
+# One-time setup
+cp .env.example .env
+make airflow-init
+
+# Start Airflow (apiserver + scheduler + dag-processor)
+make airflow-up
+```
+
+Open **http://localhost:8080** (`airflow` / `airflow`) and trigger `sales_pipeline_dag`, or via CLI:
+
+```bash
+docker compose exec airflow-apiserver airflow dags trigger sales_pipeline_dag
+```
+
+### DAG graph — all 8 stages
+
+![Airflow DAG graph view](docs/images/airflow_dag_graph.png)
+
+### A successful run
+
+![Airflow successful run](docs/images/airflow_run_success.png)
+
+Stop Airflow with `make airflow-down` — the pipeline/API services are unaffected.
+
+---
+
 ## 🧪 Running Tests
 
 ```bash
@@ -470,7 +512,7 @@ ORDER  BY total_sales DESC;
 | `agg_sales_by_category` | 17 | total_sales, total_profit, avg_discount |
 | `agg_customer_segments` | 3 | total_customers, avg_order_value |
 | `agg_monthly_trends` | 48 | total_sales, total_orders (monthly time series) |
-| `agg_product_performance` | 1,850 | total_sales, total_profit per SKU |
+| `agg_product_performance` | 1,894 | total_sales, total_profit per SKU |
 ---
 
 ## 🔜 Roadmap
@@ -480,7 +522,7 @@ ORDER  BY total_sales DESC;
 | **v1.0.0** | MVP — full medallion ETL, DuckDB, CI/CD, Docker, 90 tests | ✅ Released |
 | **v1.1.0** | Observability — Codecov, ydata-profiling HTML report, drift detection | ✅ Released |
 | **v1.2.2** | Query API — FastAPI layer + GHCR Docker publishing | ✅ Released |
-| **v2.0.0** | Data Infrastructure — Airflow DAG, BigQuery/Snowflake store | 📋 Backlog |
+| **v2.0.0** | Data Infrastructure — Airflow DAG ✅, BigQuery/Snowflake store 🔜 | 🔄 In Progress |
 | **v2.1.0** | Customer Segmentation — RFM, cohort analysis, K-Means | 📋 Backlog |
 | **v2.2.0** | Retention Analytics — churn classification, LTV correlation | 📋 Backlog |
 | **v2.3.0** | Analytics Dashboard — Tableau / Streamlit | 📋 Backlog |
@@ -501,9 +543,9 @@ flowchart TD
         D["🥇 Gold — Star schema · AOV · CLV pre-aggregated"]
     end
 
-    subgraph Infra["⚙️ Data Infrastructure  🔜  Planned — Airflow · BigQuery · Snowflake"]
-        ORC["Apache Airflow<br/>Scheduled DAGs · Dependency tracking"]
-        WH["BigQuery / Snowflake<br/>Partitioned · Clustered · Cost-optimised"]
+    subgraph Infra["⚙️ Data Infrastructure  🔄  In Progress — Airflow ✅ · BigQuery · Snowflake 🔜"]
+        ORC["Apache Airflow ✅<br/>Self-hosted DAG · 8 tasks · Docker Compose"]
+        WH["BigQuery / Snowflake 🔜<br/>Partitioned · Clustered · Cost-optimised"]
     end
 
     subgraph Seg["🧠 Customer Segmentation  🔜  Planned — scikit-learn · Databricks"]
@@ -554,7 +596,7 @@ flowchart TD
 
 - 9,994 order line items · 21 base columns · 13 derived feature columns
 - Date range: January 2014 – December 2017
-- 793 unique customers · 1,850 unique products
+- 793 unique customers · 1,894 unique products
 - Categories: Furniture, Office Supplies, Technology
 - US Regions: East, West, Central, South
 

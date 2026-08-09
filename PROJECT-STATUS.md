@@ -12,8 +12,8 @@
 |---|---|
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
-| **Phase** | v1.2 shipped — REST query layer, GHCR publishing, CI green |
-| **Latest commit** | `d073dcf7` — `ci: bump upload-artifact v5 to v6 for Node.js 24 compliance` |
+| **Phase** | v2.0 in progress — Airflow DAG shipped; BigQuery, incremental load, MLflow tracking pending |
+| **Latest commit** | `cc68e5e9` — `fix(feature-engineer): cast shipping_days to float64 before np.select comparisons` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -74,7 +74,7 @@
 | `sales_by_category.parquet` | Parquet | 17 | total_sales, total_profit, avg_discount by category/sub-cat |
 | `customer_segments.parquet` | Parquet | 3 | total_customers, avg_order_value by segment |
 | `monthly_trends.parquet` | Parquet | 48 | Monthly time-series: sales, profit, orders, units (Jan 2014 – Dec 2017) |
-| `product_performance.parquet` | Parquet | 1,850 | Per-SKU: total_sales, total_profit, avg_margin |
+| `product_performance.parquet` | Parquet | 1,894 | Per-SKU: total_sales, total_profit, avg_margin |
 
 ---
 
@@ -87,7 +87,7 @@
 | `agg_sales_by_category` | Aggregation | 17 | Category / Sub-Category KPIs |
 | `agg_customer_segments` | Aggregation | 3 | Segment KPIs |
 | `agg_monthly_trends` | Aggregation | 48 | Monthly time-series |
-| `agg_product_performance` | Aggregation | 1,850 | Product-level ranking |
+| `agg_product_performance` | Aggregation | 1,894 | Product-level ranking |
 
 **Key analytical finding:** Central region operating at **-10.41% profit margin** despite $501K revenue. West region leads both revenue and profitability at **+21.95% margin**.
 
@@ -98,11 +98,13 @@
 | File | Type | Tests | Coverage scope |
 |---|---|---|---|
 | `tests/unit/test_cleaner.py` | Unit | 23 | `src/transform/cleaner.py` |
-| `tests/unit/test_feature_engineer.py` | Unit | 19 | `src/transform/feature_engineer.py` |
+| `tests/unit/test_feature_engineer.py` | Unit | 21 | `src/transform/feature_engineer.py` |
 | `tests/unit/test_validators.py` | Unit | 20 | `src/quality/validators.py` |
 | `tests/unit/test_extractor.py` | Unit | 16 | `src/extract/extractor.py` |
+| `tests/unit/test_path_utils.py` | Unit | 7 | `dags/path_utils.py` (v2.0) |
 | `tests/integration/test_pipeline.py` | Integration | 12 | Full end-to-end pipeline |
-| **Total** | | **90** | |
+| `tests/integration/test_api.py` | Integration | 15 | FastAPI query layer smoke tests |
+| **Total** | | **114** | |
 
 **Coverage threshold:** 70% minimum (enforced in `pyproject.toml`)
 
@@ -146,6 +148,7 @@
 | Pre-commit hooks | pre-commit | ≥3.4 |
 | CI/CD | GitHub Actions | — |
 | Containers | Docker + Compose | — |
+| Orchestration | Apache Airflow (self-hosted, LocalExecutor) | 3.3.0 |
 
 ---
 
@@ -158,20 +161,20 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-09 — see `git log` for full history, 38 commits total)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-09 — see `git log` for full history, 49 commits total)*
 
 | Hash | Message |
 |---|---|
-| `291a6fed` | docs: note diagram sync risk in PROJECT-STATUS.md |
-| `c95c7240` | docs: embed architecture roadmap diagram in README |
-| `eda0f32a` | docs: realign roadmap to public architecture diagram, defer RAG layer |
-| `d073dcf7` | ci: bump upload-artifact v5 to v6 for Node.js 24 compliance |
-| `c2442c1e` | ci: upgrade GitHub Actions to Node.js 24 runtime before June 2 deadline |
-| `53fcb1af` | chore(release): bump version to 1.2.2 |
-| `28528c2f` | fix(ci): omit optional-dep modules from coverage measurement |
-| `e5cff68f` | feat(v1.2): add FastAPI query layer, GHCR release workflow, and API smoke tests |
-| `4f756231` | feat(v1.1): add observability — Codecov, data profiling, drift detection |
-| `c5b86226` | Initial commit — Production-ready sales data pipeline with ETL layers, testing, and CI/CD setup |
+| `cc68e5e9` | fix(feature-engineer): cast shipping_days to float64 before np.select comparisons |
+| `65162adb` | fix(feature-engineer): cast Quantity to float64 before per-unit division |
+| `7cf4e21e` | fix(airflow): prevent run_id collapse-to-root and add regression tests |
+| `51d9a6a0` | fix(airflow): prevent path traversal in DAG scratch-dir resolution |
+| `2b10b219` | feat(airflow): add sales_pipeline_dag wrapping the ETL stages |
+| `61cec4f8` | fix(logger): gracefully fall back to console logging when logs directory unavailable |
+| `5e90c797` | fix(airflow): fail airflow-init on migration error instead of masking it |
+| `ec74c832` | feat(airflow): add self-hosted Airflow 3.x stack to docker-compose |
+| `205ce5b5` | feat(airflow): add airflow-runtime Docker stage |
+| `0cfe582d` | chore: gitignore docs/superpowers/ internal design docs |
 
 ---
 
@@ -246,14 +249,14 @@ Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docke
 > for drift, diff this repo's README.md diagram against the profile README's *only if* the profile
 > page is currently featuring this project.
 
-### 🔜 v2.0 — Data Infrastructure *(Backlog)*
+### 🔄 v2.0 — Data Infrastructure *(In Progress)*
 
-| Item | Description |
-|---|---|
-| Cloud orchestration | Replace manual `orchestration/pipeline.py` entry point with an Airflow DAG — scheduled, dependency-tracked |
-| Cloud analytical store | BigQuery / Snowflake as a partitioned, clustered, cost-optimised store alongside local DuckDB |
-| Incremental load | Delta detection — process only new/changed rows on each run (CDC support) |
-| Experiment / run tracking | MLflow or W&B run tracking for pipeline executions and data quality metrics |
+| Item | Description | Status |
+|---|---|---|
+| Cloud orchestration | Airflow DAG (`dags/sales_pipeline_dag.py`) wrapping all 8 pipeline stages, self-hosted via Docker Compose | ✅ Done |
+| Cloud analytical store | BigQuery / Snowflake as a partitioned, clustered, cost-optimised store alongside local DuckDB | 🔜 Backlog |
+| Incremental load | Delta detection — process only new/changed rows on each run (CDC support) | 🔜 Backlog |
+| Experiment / run tracking | MLflow or W&B run tracking for pipeline executions and data quality metrics | 🔜 Backlog |
 
 ### 🔜 v2.1 — Customer Segmentation *(Backlog — scikit-learn, Databricks)*
 
