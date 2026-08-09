@@ -234,6 +234,15 @@ Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docke
 > that diagram is the canonical source for this repo's forward roadmap. An earlier RAG-layer plan
 > (ChromaDB + sentence-transformers + Claude Sonnet, scoped 2026-05-09) has been deferred in favour of
 > this customer-analytics-platform direction; it was never shipped and is not part of the active roadmap.
+>
+> **⚠️ Sync note:** the same Mermaid diagram is now embedded in two places — this repo's
+> [README.md](README.md) and the `deepan-mehta-analytics` profile README (the GitHub landing page).
+> The profile README is a portfolio-wide page — its "Current Project" callout and featured diagram
+> rotate to whichever repo is actively being worked on, so **it will not always be showing this
+> repo's diagram**. Do not assume the profile page reflects this repo's latest roadmap at any given
+> moment. When this repo's roadmap changes, update both copies in the same session; when checking
+> for drift, diff this repo's README.md diagram against the profile README's *only if* the profile
+> page is currently featuring this project.
 
 ### 🔜 v2.0 — Data Infrastructure *(Backlog)*
 
