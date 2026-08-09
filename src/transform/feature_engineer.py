@@ -145,18 +145,23 @@ def add_financial_features(df: pd.DataFrame) -> pd.DataFrame:
     # revenue_per_unit: average revenue generated per unit sold.
     # Formula: Sales / Quantity
     # np.where guards against division by zero when Quantity == 0.
+    # Quantity is cast to float64 before dividing so the division always runs
+    # on a native numpy float array — nullable "Int64" Quantity otherwise makes
+    # np.where's result dtype depend on the installed pandas/numpy version,
+    # which breaks .round(2) on older pinned versions (e.g. Airflow's image).
     df["revenue_per_unit"] = np.where(
         df["Quantity"] != 0,  # Condition: at least one unit sold
-        df["Sales"] / df["Quantity"],  # True: divide revenue by quantity
+        df["Sales"] / df["Quantity"].astype("float64"),  # True: divide revenue by quantity
         0.0,  # False: default to 0 for safety
     ).round(2)
 
     # profit_per_unit: average net profit (or loss) per unit sold.
     # Formula: Profit / Quantity
     # A negative value means this product is sold at a loss per unit.
+    # Quantity is cast to float64 for the same dtype-stability reason as above.
     df["profit_per_unit"] = np.where(
         df["Quantity"] != 0,  # Condition: at least one unit sold
-        df["Profit"] / df["Quantity"],  # True: divide profit by quantity
+        df["Profit"] / df["Quantity"].astype("float64"),  # True: divide profit by quantity
         0.0,  # False: default to 0 for safety
     ).round(2)
 

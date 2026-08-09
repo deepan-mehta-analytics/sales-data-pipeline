@@ -108,6 +108,44 @@ class TestAddFinancialFeatures:
         expected = (cleaned_df["Sales"] * cleaned_df["Discount"]).round(2)
         pd.testing.assert_series_equal(result["discount_amount"], expected, check_names=False, rtol=0.01)
 
+    def test_per_unit_columns_with_nullable_int64_quantity(self):
+        """
+        Regression test: Quantity as pandas nullable 'Int64' (capital I) with a
+        zero-quantity row must still produce float64 revenue_per_unit /
+        profit_per_unit columns with correct values.
+
+        This is the dtype path that broke under Airflow's pinned pandas 2.1.4 /
+        numpy 1.26.4 (np.where returned an object-dtype array instead of
+        float64, and .round(2) on an object array raised TypeError). The fix
+        casts Quantity to float64 before dividing so the result is dtype-stable
+        across pandas/numpy versions. This test runs under the project's normal
+        pandas/numpy versions, which do not reproduce the original failure —
+        it exists to lock in identical, correct output after the fix.
+        """
+        df = pd.DataFrame(
+            {
+                "Sales": [100.0, 50.0, 0.0],  # Revenue for 3 rows, including a zero-quantity row
+                "Profit": [20.0, -10.0, 0.0],  # Profit for 3 rows, matching Sales rows
+                "Quantity": pd.array([4, 0, 0], dtype="Int64"),  # Nullable Int64 dtype, including a zero
+                "Discount": [0.1, 0.0, 0.0],  # Discount fraction per row
+            }
+        )
+        result = add_financial_features(df)
+
+        # Both per-unit columns must end up as plain float64, not object dtype.
+        assert result["revenue_per_unit"].dtype == "float64", "revenue_per_unit must be float64"
+        assert result["profit_per_unit"].dtype == "float64", "profit_per_unit must be float64"
+
+        # Row 0: Quantity=4 (non-zero) → Sales/Quantity and Profit/Quantity.
+        assert result["revenue_per_unit"].iloc[0] == 25.0, "100.0 / 4 must equal 25.0"
+        assert result["profit_per_unit"].iloc[0] == 5.0, "20.0 / 4 must equal 5.0"
+
+        # Rows 1 and 2: Quantity=0 → division guard must default to 0.0.
+        assert result["revenue_per_unit"].iloc[1] == 0.0, "Zero quantity must default revenue_per_unit to 0.0"
+        assert result["profit_per_unit"].iloc[1] == 0.0, "Zero quantity must default profit_per_unit to 0.0"
+        assert result["revenue_per_unit"].iloc[2] == 0.0, "Zero quantity must default revenue_per_unit to 0.0"
+        assert result["profit_per_unit"].iloc[2] == 0.0, "Zero quantity must default profit_per_unit to 0.0"
+
 
 class TestAddCategoricalFeatures:
     """Tests for the add_categorical_features function."""
