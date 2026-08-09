@@ -17,7 +17,7 @@
 # so it always executes the recipe, even if a file with the same name exists.
 # =============================================================================
 
-.PHONY: install run profile api test test-unit test-int test-api lint format clean help
+.PHONY: install run profile api test test-unit test-int test-api lint format clean help airflow-init airflow-up airflow-down
 
 # ---------------------------------------------------------------------------
 # Python interpreter — override with: make run PYTHON=python3.11
@@ -72,6 +72,36 @@ api:
 	$(PYTHON) -m pip install -r requirements-api.txt   # Install fastapi + uvicorn
 	@echo "🚀 Starting FastAPI query layer on http://localhost:8000 ..."
 	uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
+
+# ---------------------------------------------------------------------------
+# airflow-init
+# One-time setup: build the Airflow image, start Postgres, migrate the
+# Airflow metadata DB, and create the local admin user. Run this once before
+# the first 'make airflow-up'.
+# ---------------------------------------------------------------------------
+airflow-init:
+	@echo "🐳 Building the Airflow image and initialising the metadata DB..."
+	docker compose up airflow-init
+	@echo "✅ Airflow initialised. Run 'make airflow-up' next."
+
+# ---------------------------------------------------------------------------
+# airflow-up
+# Start the Airflow webserver, scheduler, and DAG processor in the
+# background. UI available at http://localhost:8080 (airflow/airflow).
+# ---------------------------------------------------------------------------
+airflow-up:
+	@echo "🚀 Starting Airflow (apiserver + scheduler + dag-processor)..."
+	docker compose up -d postgres airflow-apiserver airflow-scheduler airflow-dag-processor
+	@echo "✅ Airflow UI: http://localhost:8080 (airflow / airflow)"
+
+# ---------------------------------------------------------------------------
+# airflow-down
+# Stop all Airflow containers. Postgres data persists in a named volume.
+# ---------------------------------------------------------------------------
+airflow-down:
+	@echo "🛑 Stopping Airflow services..."
+	docker compose stop postgres airflow-apiserver airflow-scheduler airflow-dag-processor
+	@echo "✅ Airflow stopped."
 
 # ---------------------------------------------------------------------------
 # test
@@ -175,6 +205,9 @@ help:
 	@echo "  make run        Execute the full ETL pipeline"
 	@echo "  make profile    Install ydata-profiling and run with full HTML report"
 	@echo "  make api        Install API deps and start FastAPI on port 8000"
+	@echo "  make airflow-init  One-time Airflow setup"
+	@echo "  make airflow-up    Start Airflow (UI at http://localhost:8080)"
+	@echo "  make airflow-down  Stop Airflow services"
 	@echo "  make test       Run all tests with coverage report"
 	@echo "  make test-unit  Run unit tests only (fast)"
 	@echo "  make test-int   Run pipeline integration tests only"

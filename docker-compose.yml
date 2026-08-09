@@ -23,6 +23,48 @@
 
 version: "3.9"   # Docker Compose file format version
 
+# =============================================================================
+# Airflow services (Phase 6 / v2.0 Data Infrastructure)
+# LocalExecutor — no Redis/Celery/worker needed for a single-machine,
+# manually-triggered DAG. Airflow 3.x separates DAG parsing (dag-processor)
+# and the task-execution API (apiserver) from the scheduler; all four
+# services below are required for a working Airflow 3.x deployment.
+# Airflow's own Postgres metadata DB is separate from this project's DuckDB
+# analytical store — it only stores DAG run history/state, never pipeline data.
+# =============================================================================
+x-airflow-common:
+  &airflow-common
+  build:
+    context: .                       # Build from this repo's Dockerfile
+    dockerfile: Dockerfile            # Same multi-stage Dockerfile as pipeline/api
+    target: airflow-runtime           # Use the Stage 5 image from Task 1
+  image: sales-pipeline-airflow:latest  # Tag the built image for reuse across services
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor  # No Celery/Redis needed for this single-DAG demo
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager  # Username/password login for the UI
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow  # Airflow's own metadata DB (psycopg2: the driver actually bundled in apache/airflow:3.3.0-python3.11 — psycopg v3 is not preinstalled)
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'  # Airflow 3.x decoupled task-execution API
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET:-sales-pipeline-local-dev-jwt-secret}  # Signs the execution-API tokens; local dev only
+    AIRFLOW__API_AUTH__JWT_ISSUER: airflow                     # Must match across all Airflow services
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'                      # Hide Airflow's example DAGs — keep the UI focused on this project's DAG
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'        # DAG is ready to trigger immediately, no manual unpause needed
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'            # Enables the scheduler healthcheck below
+    PYTHONPATH: /opt/airflow/project                            # Lets DAG tasks `from src...` import this repo's pipeline code
+  volumes:
+    - ./dags:/opt/airflow/dags                       # This repo's DAG file(s) — see Task 3
+    - airflow-logs:/opt/airflow/logs                  # Airflow's own task logs (named volume, not host-mounted)
+    - ./config:/opt/airflow/project/config            # This project's config.yaml / schema.yaml
+    - ./src:/opt/airflow/project/src                  # This project's pipeline stage modules
+    - ./data:/opt/airflow/project/data                # Bronze CSV in, Silver/Gold Parquet + airflow_tmp/ scratch out
+    - ./database:/opt/airflow/project/database        # DuckDB output — same file the API service reads
+    - ./reports:/opt/airflow/project/reports          # Profiling HTML report output
+  user: "${AIRFLOW_UID:-50000}:0"   # Matches the official image's non-root user
+  depends_on:
+    &airflow-common-depends-on
+    postgres:
+      condition: service_healthy   # Wait for Postgres to accept connections before starting
+
 services:
 
   pipeline:
@@ -115,3 +157,88 @@ services:
       - PYTHONUNBUFFERED=1     # Flush logs immediately to docker logs
 
     restart: unless-stopped    # Restart the API automatically on failure or system reboot
+
+  postgres:
+    image: postgres:16-alpine       # Airflow's metadata DB — separate from this project's DuckDB
+    environment:
+      POSTGRES_USER: airflow        # Fixed local-dev credentials — not exposed outside the compose network
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data  # Persists Airflow's run history between restarts
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]    # Used by depends_on: condition: service_healthy above
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -v -p /opt/airflow/logs /opt/airflow/dags   # Ensure Airflow's own dirs exist
+        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs /opt/airflow/dags  # Fix ownership for the airflow user
+        airflow db migrate                                 # Create/upgrade Airflow's metadata DB schema
+        airflow users create \
+          --username "${_AIRFLOW_WWW_USER_USERNAME:-airflow}" \
+          --password "${_AIRFLOW_WWW_USER_PASSWORD:-airflow}" \
+          --firstname Admin --lastname User --role Admin \
+          --email admin@example.com || true               # '|| true': don't fail re-runs if the user already exists
+    user: "0:0"   # Runs as root only for this one-shot init (dir ownership fix); every other service stays non-root
+    environment:
+      <<: *airflow-common-env
+      HOME: /home/airflow  # Root's default HOME (/root) hides Airflow's user-site-packages; the 'airflow' CLI's shebang needs HOME=/home/airflow to find its own install when entrypoint is overridden below
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: api-server              # Serves both the UI and Airflow 3.x's task-execution API
+    ports:
+      - "8080:8080"                  # UI + API reachable at http://localhost:8080
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully   # Only start once db migrate + user creation succeeded
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler                # Triggers task instances once dependencies are satisfied
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor            # Airflow 3.x parses DAG files in a separate process from the scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-db-volume:   # Airflow metadata DB storage — reused across `docker compose up`/`down`
+  airflow-logs:          # Airflow's own task-execution logs

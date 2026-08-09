@@ -94,6 +94,14 @@ reports/*.html
 reports/run_stats_reference.json
 
 # -----------------------------------------------------------------------------
+# Airflow (Phase 6 / v2.0)
+# Intermediate Parquet hand-off files between DAG tasks; regenerated on every
+# run. Local env file holds the Airflow admin login — never commit it.
+# -----------------------------------------------------------------------------
+data/airflow_tmp/
+.env
+
+# -----------------------------------------------------------------------------
 # Internal brainstorming/design docs (superpowers skill workflow)
 # Working drafts and specs — not meant for the public repo. Already covered by
 # a machine-level global gitignore, but pinned here too so the rule travels
