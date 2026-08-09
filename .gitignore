@@ -92,3 +92,11 @@ secrets.yaml
 # -----------------------------------------------------------------------------
 reports/*.html
 reports/run_stats_reference.json
+
+# -----------------------------------------------------------------------------
+# Internal brainstorming/design docs (superpowers skill workflow)
+# Working drafts and specs — not meant for the public repo. Already covered by
+# a machine-level global gitignore, but pinned here too so the rule travels
+# with the repo on a clone or a different machine.
+# -----------------------------------------------------------------------------
+docs/superpowers/
