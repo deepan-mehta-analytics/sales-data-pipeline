@@ -181,7 +181,9 @@ class TestAddFinancialFeatures:
         assert result["profit_per_unit"].iloc[0] == 5.0, "20.0 / 4 must equal 5.0"
 
         # Row 1: Quantity=pd.NA → division by NaN yields NaN (see docstring); no crash either way.
-        assert pd.isna(result["revenue_per_unit"].iloc[1]), "NA quantity must yield NaN, not raise, for revenue_per_unit"
+        assert pd.isna(
+            result["revenue_per_unit"].iloc[1]
+        ), "NA quantity must yield NaN, not raise, for revenue_per_unit"
         assert pd.isna(result["profit_per_unit"].iloc[1]), "NA quantity must yield NaN, not raise, for profit_per_unit"
 
 
