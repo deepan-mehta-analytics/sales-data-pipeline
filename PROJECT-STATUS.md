@@ -158,17 +158,19 @@
 
 ---
 
-## 📝 Git History Snapshot
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-09 — see `git log` for full history, 38 commits total)*
 
 | Hash | Message |
 |---|---|
-| `3ebe8bc6` | docs: add live DuckDB query result showcasing gold layer |
-| `0f45fe11` | docs: add pipeline execution evidence with screenshot |
-| `5c7524a5` | style: apply black formatting to pipeline.py and test_validators.py |
-| `995d3f9f` | chore: fix gitignore syntax, add gitattributes, clean tracked artefacts |
-| `9a05b5e5` | fix(tests): align regex assertions and handle string-date edge case |
-| `4d3c53c3` | style: apply isort import sorting |
-| `d5efffed` | fix(ci): resolve flake8 lint errors and enforce whitespace rules |
+| `291a6fed` | docs: note diagram sync risk in PROJECT-STATUS.md |
+| `c95c7240` | docs: embed architecture roadmap diagram in README |
+| `eda0f32a` | docs: realign roadmap to public architecture diagram, defer RAG layer |
+| `d073dcf7` | ci: bump upload-artifact v5 to v6 for Node.js 24 compliance |
+| `c2442c1e` | ci: upgrade GitHub Actions to Node.js 24 runtime before June 2 deadline |
+| `53fcb1af` | chore(release): bump version to 1.2.2 |
+| `28528c2f` | fix(ci): omit optional-dep modules from coverage measurement |
+| `e5cff68f` | feat(v1.2): add FastAPI query layer, GHCR release workflow, and API smoke tests |
+| `4f756231` | feat(v1.1): add observability — Codecov, data profiling, drift detection |
 | `c5b86226` | Initial commit — Production-ready sales data pipeline with ETL layers, testing, and CI/CD setup |
 
 ---
