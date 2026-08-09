@@ -1,6 +1,6 @@
 # PROJECT-STATUS.md — Superstore Sales Data Pipeline
 
-> **Last updated:** 2026-08-09  
+> **Last updated:** 2026-08-10  
 > **Maintainer:** Deepan Mehta  
 > **Repo:** `deepan-mehta-analytics/sales-data-pipeline`
 
@@ -13,7 +13,7 @@
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
 | **Phase** | v2.0 in progress — Airflow DAG shipped; BigQuery, incremental load, MLflow tracking pending |
-| **Latest commit** | `cf4ce5ca` — `fix(feature-engineer): cast Quantity once for both np.where operands` |
+| **Latest commit** | `1022bc4f` — `style: apply black formatting to feature_engineer regression test` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -161,10 +161,12 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-09 — see `git log` for full history, 54 commits total)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-10 — see `git log` for full history, 56 commits total)*
 
 | Hash | Message |
 |---|---|
+| `1022bc4f` | style: apply black formatting to feature_engineer regression test |
+| `edd90973` | docs: sync PROJECT-STATUS.md and README.md to post-merge main |
 | `cf4ce5ca` | fix(feature-engineer): cast Quantity once for both np.where operands |
 | `8a3b72a6` | fix(docker): mount project logs volume, narrow airflow-init idempotency |
 | `c59eaf00` | fix(dag): sync quality-gate, drift, and profiling flags with config.yaml |
@@ -173,8 +175,6 @@
 | `cc68e5e9` | fix(feature-engineer): cast shipping_days to float64 before np.select comparisons |
 | `65162adb` | fix(feature-engineer): cast Quantity to float64 before per-unit division |
 | `7cf4e21e` | fix(airflow): prevent run_id collapse-to-root and add regression tests |
-| `51d9a6a0` | fix(airflow): prevent path traversal in DAG scratch-dir resolution |
-| `2b10b219` | feat(airflow): add sales_pipeline_dag wrapping the ETL stages |
 
 ---
 
