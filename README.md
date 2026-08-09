@@ -479,10 +479,14 @@ ORDER  BY total_sales DESC;
 |---|---|---|
 | **v1.0.0** | MVP — full medallion ETL, DuckDB, CI/CD, Docker, 90 tests | ✅ Released |
 | **v1.1.0** | Observability — Codecov, ydata-profiling HTML report, drift detection | ✅ Released |
-| **v1.2.0** | Query API — FastAPI layer + GHCR Docker publishing | 🔄 In Development |
-| **v2.0.0** | Cloud-Native — S3/GCS output, Airflow/Prefect DAG, BigQuery store | 📋 Backlog |
+| **v1.2.2** | Query API — FastAPI layer + GHCR Docker publishing | ✅ Released |
+| **v2.0.0** | Data Infrastructure — Airflow DAG, BigQuery/Snowflake store | 📋 Backlog |
+| **v2.1.0** | Customer Segmentation — RFM, cohort analysis, K-Means | 📋 Backlog |
+| **v2.2.0** | Retention Analytics — churn classification, LTV correlation | 📋 Backlog |
+| **v2.3.0** | Analytics Dashboard — Tableau / Streamlit | 📋 Backlog |
 
-See [PROJECT-STATUS.md](PROJECT-STATUS.md) for full roadmap detail.
+See [PROJECT-STATUS.md](PROJECT-STATUS.md) for full roadmap detail, and the
+[architecture roadmap diagram](https://github.com/deepan-mehta-analytics/deepan-mehta-analytics) for the visual overview.
 
 ---
 

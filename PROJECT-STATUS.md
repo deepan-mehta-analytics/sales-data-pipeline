@@ -1,6 +1,6 @@
 # PROJECT-STATUS.md — Superstore Sales Data Pipeline
 
-> **Last updated:** 2026-05-09  
+> **Last updated:** 2026-08-09  
 > **Maintainer:** Deepan Mehta  
 > **Repo:** `deepan-mehta-analytics/sales-data-pipeline`
 
@@ -13,7 +13,7 @@
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
 | **Phase** | v1.2 shipped — REST query layer, GHCR publishing, CI green |
-| **Latest commit** | `28528c2f` — `fix(ci): omit optional-dep modules from coverage measurement` |
+| **Latest commit** | `d073dcf7` — `ci: bump upload-artifact v5 to v6 for Node.js 24 compliance` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -229,12 +229,40 @@ Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docke
 
 ---
 
-### 🔜 v2.0 — Cloud-Native Architecture *(Backlog)*
+> **Roadmap direction (2026-08-09):** the sequence below matches the public architecture diagram in the
+> [`deepan-mehta-analytics` profile README](https://github.com/deepan-mehta-analytics/deepan-mehta-analytics) —
+> that diagram is the canonical source for this repo's forward roadmap. An earlier RAG-layer plan
+> (ChromaDB + sentence-transformers + Claude Sonnet, scoped 2026-05-09) has been deferred in favour of
+> this customer-analytics-platform direction; it was never shipped and is not part of the active roadmap.
+
+### 🔜 v2.0 — Data Infrastructure *(Backlog)*
 
 | Item | Description |
 |---|---|
-| Cloud storage output | Write Parquet artifacts to S3 / GCS / ADLS in addition to local disk |
-| Cloud orchestration | Replace manual `orchestration/pipeline.py` entry point with an Airflow / Prefect DAG |
-| Cloud analytical store | BigQuery as an optional analytical store alongside local DuckDB |
+| Cloud orchestration | Replace manual `orchestration/pipeline.py` entry point with an Airflow DAG — scheduled, dependency-tracked |
+| Cloud analytical store | BigQuery / Snowflake as a partitioned, clustered, cost-optimised store alongside local DuckDB |
 | Incremental load | Delta detection — process only new/changed rows on each run (CDC support) |
 | Experiment / run tracking | MLflow or W&B run tracking for pipeline executions and data quality metrics |
+
+### 🔜 v2.1 — Customer Segmentation *(Backlog — scikit-learn, Databricks)*
+
+| Item | Description |
+|---|---|
+| RFM analysis | Recency · Frequency · Monetary scoring per customer |
+| Cohort analysis | Signup cohorts, engagement lifecycle tracking |
+| K-Means clustering | Unsupervised persona discovery over the warehouse layer |
+
+### 🔜 v2.2 — Retention Analytics *(Backlog — scikit-learn, Databricks)*
+
+| Item | Description |
+|---|---|
+| Churn classification | At-risk flagging with re-engagement triggers |
+| LTV correlation | High-value segment identification, feeding back into segmentation |
+
+### 🔜 v2.3 — Analytics Dashboard *(Backlog — Tableau / Streamlit)*
+
+| Item | Description |
+|---|---|
+| KPI tracking | Live dashboard sourced from the FastAPI serving layer |
+| Segment views | Visualise RFM / K-Means personas from v2.1 |
+| Retention curves | Churn and LTV-by-cohort views from v2.2 |
