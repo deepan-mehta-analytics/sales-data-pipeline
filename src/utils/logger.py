@@ -146,22 +146,33 @@ def get_logger(name: str) -> logging.Logger:
     # File handler
     # Appends JSON log lines to logs/pipeline.log so every pipeline run is
     # permanently recorded for auditing and debugging.
+    # Falls back to console-only logging if the logs directory cannot be created
+    # (e.g. when running in a container without a mounted logs volume).
     # -----------------------------------------------------------------------
     # Resolve the log file path from config, anchored at the project root.
     log_file = PROJECT_ROOT / config.get("paths", {}).get("logs", "logs/pipeline.log")
 
-    # Create the logs/ directory if it does not already exist.
-    # exist_ok=True prevents an error when the directory is already there.
-    os.makedirs(log_file.parent, exist_ok=True)
+    # Try to create the logs/ directory and attach a file handler.
+    # If this fails (e.g. permission denied in a sandboxed environment),
+    # fall back to console-only logging.
+    try:
+        # Create the logs/ directory if it does not already exist.
+        # exist_ok=True prevents an error when the directory is already there.
+        os.makedirs(log_file.parent, exist_ok=True)
 
-    # Open the log file in append mode so previous runs are never overwritten.
-    file_handler = logging.FileHandler(str(log_file), mode="a", encoding="utf-8")
-    file_handler.setLevel(level)  # Same severity threshold as console
-    file_handler.setFormatter(JsonFormatter())  # Same JSON format as console
+        # Open the log file in append mode so previous runs are never overwritten.
+        file_handler = logging.FileHandler(str(log_file), mode="a", encoding="utf-8")
+        file_handler.setLevel(level)  # Same severity threshold as console
+        file_handler.setFormatter(JsonFormatter())  # Same JSON format as console
 
-    # Register both handlers with the logger.
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+        # Register both console and file handlers with the logger.
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
+    except (OSError, PermissionError):
+        # If we can't create the logs directory, just use console logging.
+        # This allows the pipeline to run in constrained environments like Docker.
+        logger.addHandler(console_handler)  # Console handler only
+        logger.info(f"Could not create logs directory at {log_file.parent}; using console logging only")
 
     # Prevent log records from bubbling up to the root logger.
     # Without this, records would be printed twice if the root logger also
