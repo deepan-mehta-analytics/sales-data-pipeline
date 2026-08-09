@@ -81,7 +81,7 @@ Full column reference for the Superstore Sales Data Pipeline.
 | Total rows | 9,994 |
 | Unique orders | 5,009 |
 | Unique customers | 793 |
-| Unique products | 1,850 |
+| Unique products | 1,894 |
 | Date range | Jan 2014 – Dec 2017 |
 | Total revenue | $2,297,201 |
 | Total profit | $286,397 |

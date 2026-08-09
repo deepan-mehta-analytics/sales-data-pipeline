@@ -74,7 +74,7 @@ The Superstore Sales Data Pipeline implements the **Medallion Architecture** —
 | `agg_sales_by_category` | 17 | One row per Category + Sub-Category |
 | `agg_customer_segments` | 3 | One row per customer segment |
 | `agg_monthly_trends` | 48 | One row per year-month |
-| `agg_product_performance` | 1,850 | One row per product |
+| `agg_product_performance` | 1,894 | One row per product |
 
 ---
 
