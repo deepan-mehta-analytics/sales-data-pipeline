@@ -13,7 +13,7 @@
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
 | **Phase** | v2.0 in progress — Airflow DAG shipped; BigQuery, incremental load, MLflow tracking pending |
-| **Latest commit** | `1022bc4f` — `style: apply black formatting to feature_engineer regression test` |
+| **Latest commit** | `a2ad51fd` — `docs: add v2.4 Conversational Analytics Agent to the roadmap` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -161,10 +161,12 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-10 — see `git log` for full history, 56 commits total)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-10 — see `git log` for full history, 58 commits total)*
 
 | Hash | Message |
 |---|---|
+| `a2ad51fd` | docs: add v2.4 Conversational Analytics Agent to the roadmap |
+| `31644ef8` | docs: sync PROJECT-STATUS.md's commit pointer and history table to main's tip |
 | `1022bc4f` | style: apply black formatting to feature_engineer regression test |
 | `edd90973` | docs: sync PROJECT-STATUS.md and README.md to post-merge main |
 | `cf4ce5ca` | fix(feature-engineer): cast Quantity once for both np.where operands |
@@ -173,8 +175,6 @@
 | `58a42d06` | docs: fix remaining stale product-performance count in docs/ |
 | `1ebcd5b9` | docs: document the Airflow DAG (Phase 6 / v2.0) |
 | `cc68e5e9` | fix(feature-engineer): cast shipping_days to float64 before np.select comparisons |
-| `65162adb` | fix(feature-engineer): cast Quantity to float64 before per-unit division |
-| `7cf4e21e` | fix(airflow): prevent run_id collapse-to-root and add regression tests |
 
 ---
 
