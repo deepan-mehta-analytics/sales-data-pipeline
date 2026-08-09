@@ -280,3 +280,20 @@ Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docke
 | KPI tracking | Live dashboard sourced from the FastAPI serving layer |
 | Segment views | Visualise RFM / K-Means personas from v2.1 |
 | Retention curves | Churn and LTV-by-cohort views from v2.2 |
+
+### 🔜 v2.4 — Conversational Analytics Agent *(Backlog — LangGraph, Claude Sonnet 5)*
+
+A tool-calling agent exposed as a new FastAPI route, positioned after the Dashboard (v2.3) since
+it's most useful once segmentation/retention data exists to query. Replaces an earlier, deferred
+ChromaDB/sentence-transformers RAG plan — vector search is the wrong tool for this repo's small,
+structured Gold-layer tables; text-to-SQL is the right-fit pattern instead. LangGraph chosen over
+CrewAI/LangChain/raw Anthropic SDK for its production/enterprise adoption signal and to
+demonstrate a different agent-framework skill than this portfolio's other Claude-agent work
+(raw-SDK in `stayops`, native Cortex Agents in `snowflake-cortex-ai`).
+
+| Item | Description |
+|---|---|
+| SQL-query tool | Natural-language question → SQL query over DuckDB/BigQuery → real result, no embeddings |
+| Framework | LangGraph (MIT, self-hosted), $0 — only recurring cost is ordinary Claude API usage |
+| Model | Claude Sonnet 5 for reasoning/SQL-generation; Haiku 4.5 for cheap routing sub-steps if added |
+| Exposure | New FastAPI route alongside the existing v1.2 query endpoints |

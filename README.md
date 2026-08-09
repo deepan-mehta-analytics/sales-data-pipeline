@@ -526,6 +526,7 @@ ORDER  BY total_sales DESC;
 | **v2.1.0** | Customer Segmentation — RFM, cohort analysis, K-Means | 📋 Backlog |
 | **v2.2.0** | Retention Analytics — churn classification, LTV correlation | 📋 Backlog |
 | **v2.3.0** | Analytics Dashboard — Tableau / Streamlit | 📋 Backlog |
+| **v2.4.0** | Conversational Analytics Agent — LangGraph text-to-SQL agent over the warehouse | 📋 Backlog |
 
 See [PROJECT-STATUS.md](PROJECT-STATUS.md) for full roadmap detail.
 
@@ -568,6 +569,10 @@ flowchart TD
         L["KPI tracking · Segment views<br/>Retention curves · LTV by cohort"]
     end
 
+    subgraph Agent["🤖 Conversational Analytics Agent  🔜  Planned — LangGraph · Claude Sonnet 5"]
+        M["Text-to-SQL Tool-Calling Agent<br/>Natural-language queries over the warehouse"]
+    end
+
     Sources --> B
     B --> C
     C --> D
@@ -583,6 +588,7 @@ flowchart TD
     J --> K
     I --> K
     K --> L
+    L --> M
 ```
 
 > Kept in sync with the canonical version in the
