@@ -19,6 +19,7 @@ from datetime import datetime  # DAG start_date (required by Airflow, not used f
 from pathlib import Path  # Cross-platform path handling for intermediate Parquet files
 
 import pandas as pd  # Parquet read/write for inter-task hand-off
+import yaml  # Reads config/config.yaml, mirroring orchestration/pipeline.py's config loading
 from airflow.decorators import dag, task  # TaskFlow API
 from airflow.exceptions import AirflowException  # Raised to fail a task deliberately on a bad quality gate
 from path_utils import resolve_run_dir  # Airflow-independent, unit-tested run_id sanitization + containment check
@@ -36,6 +37,24 @@ PROJECT_ROOT = Path("/opt/airflow/project")  # Matches the volume mount target, 
 
 # Scratch directory for intermediate Parquet hand-offs between DAG tasks, keyed by run.
 AIRFLOW_TMP_ROOT = PROJECT_ROOT / "data" / "airflow_tmp"  # Gitignored — see .gitignore
+
+# Absolute path to the configuration file, same file orchestration/pipeline.py reads.
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"  # Resolved against the container's mounted project root
+
+
+def _load_config() -> dict:
+    """Read and return the pipeline configuration as a Python dict."""
+    with open(CONFIG_PATH, "r", encoding="utf-8") as fh:  # Open config.yaml
+        return yaml.safe_load(fh)  # Parse YAML
+
+
+# Load config once at module (DAG-parse) time — mirrors orchestration/pipeline.py's
+# _load_config() call pattern, but read once here since DAG-parse happens per-file-load
+# rather than per-run. Same keys, same defaults, same `.get("pipeline", {}).get(...)` shape.
+_CONFIG = _load_config()  # Parsed config/config.yaml contents
+FAIL_ON_QUALITY_ERROR = _CONFIG.get("pipeline", {}).get("fail_on_quality_error", True)  # Quality-gate enforcement flag
+DRIFT_THRESHOLD = _CONFIG.get("pipeline", {}).get("drift_threshold", 0.05)  # Relative drift threshold (5% default)
+GENERATE_PROFILE = _CONFIG.get("pipeline", {}).get("generate_profile", True)  # Whether to run the profiling stage
 
 
 def _tmp_dir(run_id: str) -> Path:
@@ -56,6 +75,7 @@ def _tmp_dir(run_id: str) -> Path:
     schedule=None,  # Manually/API triggered; the GitHub Actions daily cron remains the scheduled path
     start_date=datetime(2026, 1, 1),  # Static start date; Airflow requires one, it isn't used for scheduling here
     catchup=False,  # Do not backfill historical runs
+    max_active_runs=1,  # Single writer: load_task shares data/silver, data/gold, database/superstore.duckdb
     tags=["sales-pipeline", "etl", "portfolio"],  # UI filter tags
 )
 def sales_pipeline_dag():
@@ -74,7 +94,7 @@ def sales_pipeline_dag():
         """Run raw-data quality checks; fail this task if the quality gate fails."""
         raw_df = pd.read_parquet(raw_path)  # Reload the raw DataFrame from the prior task
         report = run_quality_checks(raw_df, run_date_checks=False)  # Dates are still strings at this stage
-        if not report.overall_passed:  # Mirrors config.yaml's fail_on_quality_error gate
+        if not report.overall_passed and FAIL_ON_QUALITY_ERROR:  # Same gate as pipeline.py: only raise when enabled
             raise AirflowException(
                 f"Raw-data quality gate failed: {report.failed_checks} of {report.total_checks} checks failed"
             )
@@ -94,7 +114,7 @@ def sales_pipeline_dag():
         """Run cleaned-data quality checks, including temporal (ship-after-order) validation."""
         cleaned_df = pd.read_parquet(cleaned_path)  # Reload the cleaned DataFrame
         report = run_quality_checks(cleaned_df, run_date_checks=True)  # Dates are now datetime-typed
-        if not report.overall_passed:  # Same quality gate as orchestration/pipeline.py
+        if not report.overall_passed and FAIL_ON_QUALITY_ERROR:  # Same gate as pipeline.py: only raise when enabled
             raise AirflowException(
                 f"Cleaned-data quality gate failed: {report.failed_checks} of {report.total_checks} checks failed"
             )
@@ -120,13 +140,16 @@ def sales_pipeline_dag():
     def drift_task(enriched_path: str) -> None:
         """Run statistical drift detection. Observability only — never fails the DAG."""
         enriched_df = pd.read_parquet(enriched_path)  # Reload the enriched DataFrame
-        detect_drift(enriched_df, threshold=0.05)  # Logs WARNINGs on drift beyond 5%; does not raise
+        detect_drift(enriched_df, threshold=DRIFT_THRESHOLD)  # Logs WARNINGs on drift beyond config's threshold
 
     @task
     def profile_task(enriched_path: str) -> None:
-        """Generate the HTML data-profiling report for the enriched DataFrame."""
+        """Generate the HTML data-profiling report for the enriched DataFrame, unless disabled in config."""
         enriched_df = pd.read_parquet(enriched_path)  # Reload the enriched DataFrame
-        generate_profile(enriched_df)  # Writes reports/profile_<timestamp>.html (unchanged from src/)
+        if GENERATE_PROFILE:  # Only run if profiling is enabled in config.yaml
+            generate_profile(enriched_df)  # Writes reports/profile_<timestamp>.html (unchanged from src/)
+        else:
+            print("Profiling skipped (generate_profile: false in config.yaml)")  # Mirrors pipeline.py's skip log
 
     # -------------------------------------------------------------------
     # Wire the linear dependency chain — mirrors orchestration/pipeline.py's
