@@ -485,8 +485,66 @@ ORDER  BY total_sales DESC;
 | **v2.2.0** | Retention Analytics — churn classification, LTV correlation | 📋 Backlog |
 | **v2.3.0** | Analytics Dashboard — Tableau / Streamlit | 📋 Backlog |
 
-See [PROJECT-STATUS.md](PROJECT-STATUS.md) for full roadmap detail, and the
-[architecture roadmap diagram](https://github.com/deepan-mehta-analytics/deepan-mehta-analytics) for the visual overview.
+See [PROJECT-STATUS.md](PROJECT-STATUS.md) for full roadmap detail.
+
+### Architecture & Roadmap Diagram
+
+```mermaid
+flowchart TD
+    subgraph Sources["📥 Data Sources"]
+        S1["CRM"] & S2["POS / Transactions"] & S3["Web Analytics"]
+    end
+
+    subgraph ETL["🏗️ Medallion ETL  ✅  Built — Python · Pandas · Pydantic"]
+        B["🥉 Bronze — Ingest + schema validation"]
+        C["🥈 Silver — Clean · Dedup · Feature engineering"]
+        D["🥇 Gold — Star schema · AOV · CLV pre-aggregated"]
+    end
+
+    subgraph Infra["⚙️ Data Infrastructure  🔜  Planned — Airflow · BigQuery · Snowflake"]
+        ORC["Apache Airflow<br/>Scheduled DAGs · Dependency tracking"]
+        WH["BigQuery / Snowflake<br/>Partitioned · Clustered · Cost-optimised"]
+    end
+
+    subgraph Seg["🧠 Customer Segmentation  🔜  Planned — scikit-learn · Databricks"]
+        E["RFM Analysis<br/>Recency · Frequency · Monetary"]
+        F["Cohort Analysis<br/>Signup cohorts · Engagement lifecycle"]
+        G["K-Means Clustering<br/>Unsupervised persona discovery"]
+    end
+
+    subgraph Ret["🔁 Retention Analytics  🔜  Planned — scikit-learn · Databricks"]
+        H["Churn Classification<br/>At-risk flagging · Re-engagement triggers"]
+        I["LTV Correlation<br/>High-value segment identification"]
+    end
+
+    subgraph Serving["⚡ Serving Layer  ✅  Built — FastAPI · DuckDB · Docker"]
+        J["🦆 DuckDB — In-process analytics"]
+        K["FastAPI REST API"]
+    end
+
+    subgraph Dash["📊 Analytics Dashboard  🔜  Planned — Tableau · Streamlit"]
+        L["KPI tracking · Segment views<br/>Retention curves · LTV by cohort"]
+    end
+
+    Sources --> B
+    B --> C
+    C --> D
+    D --> ORC
+    ORC --> WH
+    D --> J
+    WH --> E
+    WH --> F
+    E --> G
+    G --> H
+    F --> H
+    H --> I
+    J --> K
+    I --> K
+    K --> L
+```
+
+> Kept in sync with the canonical version in the
+> [`deepan-mehta-analytics` profile README](https://github.com/deepan-mehta-analytics/deepan-mehta-analytics).
 
 ---
 
