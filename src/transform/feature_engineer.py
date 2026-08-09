@@ -226,12 +226,20 @@ def add_categorical_features(df: pd.DataFrame) -> pd.DataFrame:
     # -----------------------------------------------------------------------
     # shipping_speed: classify fulfilment speed by calendar days.
     # Thresholds are approximate; Same Day = 0-1, Express = 2-3, etc.
+    # shipping_days is cast to float64 before building the comparisons below:
+    # comparisons on the nullable "Int64" column produce pandas' nullable
+    # "boolean" extension dtype, which np.select's condlist otherwise handles
+    # in a version-dependent way — pandas 3.0.2/numpy 2.4.4 tolerate it, but
+    # pandas 2.1.4/numpy 1.26.4 (pinned inside the Airflow runtime image)
+    # raise TypeError. The cast is local to this comparison; the stored
+    # shipping_days column itself stays Int64.
     # -----------------------------------------------------------------------
+    shipping_days_f = df["shipping_days"].astype("float64")  # Native float64 copy for stable boolean comparisons
     speed_conditions = [
-        df["shipping_days"] <= 1,  # Same Day / Overnight
-        (df["shipping_days"] >= 2) & (df["shipping_days"] <= 3),  # Express (2-3 days)
-        (df["shipping_days"] >= 4) & (df["shipping_days"] <= 6),  # Standard (4-6 days)
-        df["shipping_days"] >= 7,  # Slow (1 week or more)
+        shipping_days_f <= 1,  # Same Day / Overnight
+        (shipping_days_f >= 2) & (shipping_days_f <= 3),  # Express (2-3 days)
+        (shipping_days_f >= 4) & (shipping_days_f <= 6),  # Standard (4-6 days)
+        shipping_days_f >= 7,  # Slow (1 week or more)
     ]
     speed_labels = ["Same Day", "Express", "Standard", "Slow"]  # Labels matching conditions
 

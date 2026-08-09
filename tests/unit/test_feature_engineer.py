@@ -198,6 +198,36 @@ class TestAddCategoricalFeatures:
 
         assert result["shipping_speed"].iloc[0] == "Same Day"
 
+    def test_shipping_speed_with_nullable_int64_shipping_days(self):
+        """
+        Regression test: shipping_days as pandas nullable 'Int64' (capital I)
+        must still produce correct shipping_speed labels at every boundary.
+
+        This is the dtype path that broke under Airflow's pinned pandas 2.1.4 /
+        numpy 1.26.4: comparisons on a nullable Int64 column produce pandas'
+        nullable 'boolean' extension dtype, and np.select's condlist raised
+        "TypeError: invalid entry 0 in condlist: should be boolean ndarray" on
+        those older versions. The fix casts shipping_days to float64 before
+        building the comparisons so np.select always receives native numpy
+        bool arrays. This test runs under the project's normal pandas/numpy
+        versions, which do not reproduce the original failure — it exists to
+        lock in identical, correct output after the fix.
+        """
+        df = pd.DataFrame(
+            {
+                "profit_margin_pct": [10.0, 10.0, 10.0, 10.0],  # Constant margin, irrelevant to this test
+                "shipping_days": pd.array([1, 2, 3, 7], dtype="Int64"),  # Nullable Int64, boundary values
+            }
+        )
+        result = add_categorical_features(df)
+
+        # shipping_days dtype must remain Int64 — the cast is local to the comparison only.
+        assert result["shipping_days"].dtype == "Int64", "shipping_days column dtype must stay Int64"
+
+        # Boundary values must map to the expected labels.
+        expected = ["Same Day", "Express", "Express", "Slow"]  # 1→Same Day, 2/3→Express, 7→Slow
+        assert list(result["shipping_speed"]) == expected, f"Expected {expected}, got {list(result['shipping_speed'])}"
+
 
 class TestEngineer:
     """Tests for the public engineer() entry point."""
