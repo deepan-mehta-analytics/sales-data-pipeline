@@ -12,7 +12,7 @@
 |---|---|
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
-| **Phase** | v2.0 in progress — Airflow DAG shipped; BigQuery, incremental load, MLflow tracking pending |
+| **Phase** | v2.0 in progress — Airflow DAG and BigQuery sync shipped and live-verified; incremental load, MLflow tracking pending |
 | **Latest commit** | `a2ad51fd` — `docs: add v2.4 Conversational Analytics Agent to the roadmap` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |

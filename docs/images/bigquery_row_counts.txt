@@ -1,0 +1,60 @@
+BigQuery Sync Verification — Live Run Evidence
+================================================
+Project: sales-data-pipeline-dm
+Dataset: superstore_analytics
+Captured: 2026-08-10
+Airflow DAG run: manual__2026-08-10T06:07:18.988908+00:00 (state: success, all 9 tasks succeeded)
+
+--- Row-count parity check (bq query --use_legacy_sql=false) ---
+
+SELECT
+  (SELECT COUNT(*) FROM `sales-data-pipeline-dm.superstore_analytics.fact_sales`) AS fact_sales,
+  (SELECT COUNT(*) FROM `sales-data-pipeline-dm.superstore_analytics.agg_sales_by_region`) AS agg_sales_by_region,
+  (SELECT COUNT(*) FROM `sales-data-pipeline-dm.superstore_analytics.agg_sales_by_category`) AS agg_sales_by_category,
+  (SELECT COUNT(*) FROM `sales-data-pipeline-dm.superstore_analytics.agg_customer_segments`) AS agg_customer_segments,
+  (SELECT COUNT(*) FROM `sales-data-pipeline-dm.superstore_analytics.agg_monthly_trends`) AS agg_monthly_trends,
+  (SELECT COUNT(*) FROM `sales-data-pipeline-dm.superstore_analytics.agg_product_performance`) AS agg_product_performance
+
++------------+---------------------+-----------------------+-----------------------+--------------------+-------------------------+
+| fact_sales | agg_sales_by_region | agg_sales_by_category | agg_customer_segments | agg_monthly_trends | agg_product_performance |
++------------+---------------------+-----------------------+-----------------------+--------------------+-------------------------+
+|       9994 |                   4 |                    17 |                     3 |                 48 |                    1894 |
++------------+---------------------+-----------------------+-----------------------+--------------------+-------------------------+
+
+Expected (DuckDB baselines, PROJECT-STATUS.md) vs Actual (BigQuery):
+  fact_sales               9994 vs 9994   MATCH
+  agg_sales_by_region         4 vs    4   MATCH
+  agg_sales_by_category      17 vs   17   MATCH
+  agg_customer_segments       3 vs    3   MATCH
+  agg_monthly_trends         48 vs   48   MATCH
+  agg_product_performance  1894 vs 1894   MATCH
+
+Full row-count parity: PASS (6/6 tables)
+
+--- Partitioning / clustering check (bq show --format=prettyjson fact_sales) ---
+
+  "clustering": {
+    "fields": [
+      "region",
+      "category"
+    ]
+  },
+  ...
+  "timePartitioning": {
+    "field": "order_date",
+    "type": "MONTH"
+  }
+
+Confirms: fact_sales is MONTH-partitioned on order_date and clustered on
+(region, category), exactly as designed in
+docs/superpowers/specs/2026-08-09-bigquery-warehouse-design.md.
+
+--- Cost check ---
+
+fact_sales storage: numBytes = 3,466,930 (~3.3 MiB), numRows = 9994
+Six tables combined are well under a few MB total — far below the
+10 GiB storage / 1 TiB query BigQuery Always Free tier. `gcloud billing
+projects describe sales-data-pipeline-dm` confirms billingEnabled: true
+against the linked account, with no anomalies. GCP Console Billing →
+Reports UI was not reachable from this environment; expected charge is
+$0.00 based on the free-tier math above.

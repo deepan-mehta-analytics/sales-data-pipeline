@@ -404,6 +404,13 @@ bq query --use_legacy_sql=false \
    GROUP BY region ORDER BY total_sales DESC'
 ```
 
+**Live-verified 2026-08-10** — a real Airflow DAG run against the real
+`sales-data-pipeline-dm` project loaded all six tables with row counts matching
+the DuckDB baselines exactly, and confirmed `fact_sales` partitioning
+(`order_date`, MONTH) and clustering (`region`, `category`) landed as designed.
+See [`docs/images/bigquery_row_counts.txt`](docs/images/bigquery_row_counts.txt)
+for the captured `bq query` / `bq show` evidence.
+
 ---
 
 ## 🧪 Running Tests
@@ -544,7 +551,7 @@ ORDER  BY total_sales DESC;
 | **v1.0.0** | MVP — full medallion ETL, DuckDB, CI/CD, Docker, 90 tests | ✅ Released |
 | **v1.1.0** | Observability — Codecov, ydata-profiling HTML report, drift detection | ✅ Released |
 | **v1.2.2** | Query API — FastAPI layer + GHCR Docker publishing | ✅ Released |
-| **v2.0.0** | Data Infrastructure — Airflow DAG ✅, BigQuery/Snowflake store 🔜 | 🔄 In Progress |
+| **v2.0.0** | Data Infrastructure — Airflow DAG ✅, BigQuery store ✅ (live-verified) | 🔄 In Progress |
 | **v2.1.0** | Customer Segmentation — RFM, cohort analysis, K-Means | 📋 Backlog |
 | **v2.2.0** | Retention Analytics — churn classification, LTV correlation | 📋 Backlog |
 | **v2.3.0** | Analytics Dashboard — Tableau / Streamlit | 📋 Backlog |
@@ -566,9 +573,9 @@ flowchart TD
         D["🥇 Gold — Star schema · AOV · CLV pre-aggregated"]
     end
 
-    subgraph Infra["⚙️ Data Infrastructure  🔄  In Progress — Airflow ✅ · BigQuery · Snowflake 🔜"]
-        ORC["Apache Airflow ✅<br/>Self-hosted DAG · 8 tasks · Docker Compose"]
-        WH["BigQuery / Snowflake 🔜<br/>Partitioned · Clustered · Cost-optimised"]
+    subgraph Infra["⚙️ Data Infrastructure  🔄  In Progress — Airflow ✅ · BigQuery ✅ · Incremental load 🔜"]
+        ORC["Apache Airflow ✅<br/>Self-hosted DAG · 9 tasks · Docker Compose"]
+        WH["BigQuery ✅<br/>Partitioned · Clustered · Live-verified"]
     end
 
     subgraph Seg["🧠 Customer Segmentation  🔜  Planned — scikit-learn · Databricks"]
