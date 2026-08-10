@@ -20,6 +20,9 @@ This project uses [Semantic Versioning](https://semver.org/).
   `airflow-scheduler`, `airflow-dag-processor`), LocalExecutor, no Celery/Redis needed
 - `Makefile` — `make airflow-init`, `make airflow-up`, `make airflow-down`
 - `.env.example` — Airflow local-dev credentials template
+- BigQuery cloud analytical store (v2.0): new `load_bigquery` Airflow DAG task syncs Gold-layer
+  tables into a dedicated GCP project, `fact_sales` partitioned/clustered, full truncate-reload.
+  Runs only from the self-hosted Airflow DAG, never CI.
 
 ### Fixed
 - `dags/sales_pipeline_dag.py` — DAG scratch-directory resolution now rejects a `run_id` that

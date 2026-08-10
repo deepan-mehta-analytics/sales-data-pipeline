@@ -382,6 +382,28 @@ docker compose exec airflow-apiserver airflow dags trigger sales_pipeline_dag
 
 Stop Airflow with `make airflow-down` — the pipeline/API services are unaffected.
 
+### BigQuery sync *(v2.0)*
+
+The `load_bigquery` DAG task syncs the Gold-layer tables into a dedicated BigQuery project
+(`sales-data-pipeline-dm`) after every DAG run — a partitioned/clustered cloud analytical store
+alongside the local DuckDB store, not a replacement for it. Six tables: `fact_sales` (monthly
+partitioned on `order_date`, clustered on `region`/`category`) plus the five `agg_*` aggregation
+tables, full truncate-and-reload each run.
+
+This only runs from the self-hosted Airflow DAG — `orchestration/pipeline.py` and the daily
+GitHub Actions cron never touch BigQuery, so no GCP credential lives in this repo's CI. Local
+setup requires a one-time GCP service-account key (see `.env.example`); see
+`docs/superpowers/specs/2026-08-09-bigquery-warehouse-design.md` for the full cost/security
+rationale.
+
+Query it directly once populated:
+```bash
+bq query --use_legacy_sql=false \
+  'SELECT region, ROUND(SUM(sales),0) AS total_sales
+   FROM `sales-data-pipeline-dm.superstore_analytics.fact_sales`
+   GROUP BY region ORDER BY total_sales DESC'
+```
+
 ---
 
 ## 🧪 Running Tests

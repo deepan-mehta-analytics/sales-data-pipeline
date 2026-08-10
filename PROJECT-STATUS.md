@@ -149,6 +149,7 @@
 | CI/CD | GitHub Actions | — |
 | Containers | Docker + Compose | — |
 | Orchestration | Apache Airflow (self-hosted, LocalExecutor) | 3.3.0 |
+| Cloud warehouse | Google BigQuery | Partitioned/clustered analytical store, synced from the Airflow DAG only |
 
 ---
 
@@ -254,7 +255,7 @@ Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docke
 | Item | Description | Status |
 |---|---|---|
 | Cloud orchestration | Airflow DAG (`dags/sales_pipeline_dag.py`) wrapping all 8 pipeline stages, self-hosted via Docker Compose | ✅ Done |
-| Cloud analytical store | BigQuery / Snowflake as a partitioned, clustered, cost-optimised store alongside local DuckDB | 🔜 Backlog |
+| Cloud analytical store | BigQuery (`sales-data-pipeline-dm` project) — `fact_sales` partitioned/clustered + 5 `agg_*` tables, synced from the Airflow DAG's `load_bigquery` task | ✅ Done |
 | Incremental load | Delta detection — process only new/changed rows on each run (CDC support) | 🔜 Backlog |
 | Experiment / run tracking | MLflow or W&B run tracking for pipeline executions and data quality metrics | 🔜 Backlog |
 
