@@ -32,6 +32,8 @@ matplotlib>=3.7.0      # Plotting library used in EDA notebook
 seaborn>=0.12.0        # Statistical visualisation built on matplotlib
 
 # ---------------------------------------------------------------------------
-# BigQuery warehouse sync (Task 3) — mocked in tests, no real network calls
+# BigQuery warehouse sync — mocked in tests, no real network calls
+# Included by reference (not re-pinned) so tests always resolve the same client
+# version the airflow-runtime image installs — single source of truth.
 # ---------------------------------------------------------------------------
-google-cloud-bigquery>=3.25.0   # BigQuery client — needed to import src/load/bigquery_loader.py in tests (mocked, no real calls)
+-r requirements-gcp.txt   # Needed to import src/load/bigquery_loader.py in tests (mocked, no real calls)
