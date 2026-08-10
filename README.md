@@ -43,7 +43,7 @@ It implements:
 - **Drift detection** *(v1.1)* — Statistical drift check comparing key metrics against prior-run reference
 - **REST query API** *(v1.2)* — FastAPI layer exposing all five DuckDB gold tables with typed Pydantic responses
 - **GHCR Docker publishing** *(v1.2)* — Pipeline and API images published to GitHub Container Registry on every version tag
-- **Self-hosted Airflow orchestration** *(v2.0)* — DAG wrapping all 8 pipeline stages as independently retryable, independently observable tasks, alongside the existing scheduled CI run
+- **Self-hosted Airflow orchestration** *(v2.0)* — DAG wrapping all 8 pipeline stages plus the BigQuery sync (9 Airflow tasks total) as independently retryable, independently observable tasks, alongside the existing scheduled CI run
 
 ---
 
@@ -62,7 +62,7 @@ It implements:
 | Query API | FastAPI + uvicorn | REST layer over DuckDB gold tables (v1.2) |
 | API Validation | Pydantic v2 | Typed response schemas for all endpoints |
 | Container Registry | GitHub Container Registry | Versioned Docker image publishing on release tags (v1.2) |
-| Orchestration | Apache Airflow 3.x (self-hosted) | DAG orchestration of all 8 pipeline stages, LocalExecutor (v2.0) |
+| Orchestration | Apache Airflow 3.x (self-hosted) | DAG orchestration of all 8 pipeline stages + BigQuery sync — 9 tasks, LocalExecutor (v2.0) |
 | Code Quality | black + isort + flake8 | Formatting, import sorting, and linting |
 | CI/CD | GitHub Actions | Automated test and pipeline execution |
 | Containers | Docker + Compose | Reproducible execution environment |
@@ -110,6 +110,8 @@ sales-data-pipeline/
 │   ├── config.yaml                 ← Paths, encoding, quality thresholds
 │   └── schema.yaml                 ← Column types, nullability, allowed values
 │
+├── credentials/                    ← v2.0: GCP service-account key drop-point (gitignored)
+│
 ├── data/
 │   ├── bronze/                     ← Place Kaggle CSV here
 │   ├── silver/                     ← Cleaned Parquet (pipeline output)
@@ -125,7 +127,7 @@ sales-data-pipeline/
 │   └── superstore.duckdb           ← OLAP database (pipeline output)
 │
 ├── dags/
-│   ├── sales_pipeline_dag.py       ← v2.0: Airflow DAG wrapping all 8 pipeline stages
+│   ├── sales_pipeline_dag.py       ← v2.0: Airflow DAG — 8 pipeline stages + BigQuery sync (9 tasks)
 │   └── path_utils.py               ← v2.0: airflow-independent run_id sanitization/containment
 │
 ├── docs/
@@ -148,7 +150,8 @@ sales-data-pipeline/
 │   │   ├── cleaner.py              ← Silver: cleaning + type normalisation
 │   │   └── feature_engineer.py    ← Silver: 13 derived analytical columns
 │   ├── load/
-│   │   └── loader.py              ← Gold: Parquet export + DuckDB load
+│   │   ├── loader.py              ← Gold: Parquet export + DuckDB load
+│   │   └── bigquery_loader.py     ← v2.0: Gold → BigQuery sync (partitioned/clustered)
 │   ├── quality/
 │   │   ├── validators.py          ← 6 automated data quality checks
 │   │   ├── profiler.py            ← v1.1: HTML data-profiling report generator
@@ -160,16 +163,17 @@ sales-data-pipeline/
 │
 ├── tests/
 │   ├── conftest.py                 ← Shared pytest fixtures
-│   ├── unit/                       ← Fast, isolated unit tests (88 cases)
+│   ├── unit/                       ← Fast, isolated unit tests (105 cases)
 │   └── integration/                ← Full end-to-end pipeline test
 │
 ├── Dockerfile                      ← Multi-stage container build (incl. v2.0 airflow-runtime stage)
 ├── docker-compose.yml              ← Local containerised execution + v2.0 Airflow services
-├── .env.example                    ← v2.0: Airflow local-dev credentials template
+├── .env.example                    ← v2.0: Airflow local-dev + GCP/BigQuery env template
 ├── Makefile                        ← Developer convenience commands
 ├── pyproject.toml                  ← Packaging + tool configuration
 ├── requirements.txt                ← Production dependencies
 ├── requirements-dev.txt            ← Testing + linting dependencies
+├── requirements-gcp.txt            ← v2.0: BigQuery client dependencies
 └── requirements-profiling.txt      ← v1.1: Optional ydata-profiling dependency
 ```
 
@@ -372,13 +376,19 @@ Open **http://localhost:8080** (`airflow` / `airflow`) and trigger `sales_pipeli
 docker compose exec airflow-apiserver airflow dags trigger sales_pipeline_dag
 ```
 
-### DAG graph — all 8 stages
+### DAG graph — the 8 pipeline stages
 
 ![Airflow DAG graph view](docs/images/airflow_dag_graph.png)
 
 ### A successful run
 
 ![Airflow successful run](docs/images/airflow_run_success.png)
+
+> Both screenshots are from a 2026-08-09 run, captured before the v2.0 BigQuery sync landed, so
+> they show the 8 pipeline-stage tasks only. The DAG now runs **9 tasks** — `load_bigquery_task`
+> was added downstream of `load_task` (see [BigQuery sync](#bigquery-sync-v20) below), and its
+> later live run is evidenced in
+> [`docs/images/bigquery_row_counts.txt`](docs/images/bigquery_row_counts.txt).
 
 Stop Airflow with `make airflow-down` — the pipeline/API services are unaffected.
 
