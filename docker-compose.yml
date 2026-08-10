@@ -53,7 +53,7 @@ x-airflow-common:
     PYTHONPATH: /opt/airflow/project                            # Lets DAG tasks `from src...` import this repo's pipeline code
     GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}                          # v2.0 BigQuery sync — read by load_bigquery_task
     BQ_DATASET_ID: ${BQ_DATASET_ID:-superstore_analytics}        # v2.0 BigQuery sync — dataset name
-    GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/opt/airflow/project/credentials/gcp-service-account.json}  # v2.0 — service-account key path inside the container
+    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/project/credentials/gcp-service-account.json  # v2.0 — container-internal key path; hardcoded so a host-side gcloud value can't override the mount
   volumes:
     - ./dags:/opt/airflow/dags                       # This repo's DAG file(s) — see Task 3
     - airflow-logs:/opt/airflow/logs                  # Airflow's own task logs (named volume, not host-mounted)
