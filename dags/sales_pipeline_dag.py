@@ -15,7 +15,8 @@
 # Or from the UI:    http://localhost:8080/dags/sales_pipeline_dag
 # =============================================================================
 
-from datetime import datetime  # DAG start_date (required by Airflow, not used for scheduling)
+import os  # Reads GCP_PROJECT_ID / BQ_DATASET_ID env vars for the BigQuery sync task
+from datetime import datetime, timedelta  # DAG start_date; timedelta for load_bigquery_task's retry_delay
 from pathlib import Path  # Cross-platform path handling for intermediate Parquet files
 
 import pandas as pd  # Parquet read/write for inter-task hand-off
@@ -25,6 +26,7 @@ from airflow.exceptions import AirflowException  # Raised to fail a task deliber
 from path_utils import resolve_run_dir  # Airflow-independent, unit-tested run_id sanitization + containment check
 
 from src.extract.extractor import extract  # Bronze-layer CSV ingestion
+from src.load.bigquery_loader import sync_to_bigquery  # v2.0 — BigQuery cloud analytical store sync
 from src.load.loader import load  # Gold-layer loading — writes Parquet + DuckDB
 from src.quality.drift_detector import detect_drift  # Statistical drift detection vs prior run
 from src.quality.profiler import generate_profile  # HTML data-profiling report generator
@@ -136,6 +138,21 @@ def sales_pipeline_dag():
         load(enriched_df)  # Writes data/silver, data/gold, and database/superstore.duckdb (unchanged from src/)
         return enriched_path  # Pass the path through so drift/profile tasks can still read it
 
+    @task(retries=2, retry_delay=timedelta(minutes=2))
+    def load_bigquery_task(loaded_path: str) -> None:
+        """
+        Sync the Gold Parquet files just written by load_task into BigQuery
+        (v2.0 cloud analytical store, alongside the local DuckDB store).
+        Runs only here — never from orchestration/pipeline.py or the GitHub
+        Actions daily cron, so no GCP credential is needed in CI.
+        """
+        # Set (possibly to "") by docker-compose's ${GCP_PROJECT_ID:-} default; sync_to_bigquery
+        # is what actually validates a non-empty value — this KeyError only guards a caller
+        # that isn't the docker-compose-configured container (e.g. a bare `python -c` invocation).
+        project_id = os.environ["GCP_PROJECT_ID"]
+        dataset_id = os.environ.get("BQ_DATASET_ID", "superstore_analytics")  # Falls back to sync_to_bigquery's default
+        sync_to_bigquery(project_id=project_id, dataset_id=dataset_id)  # Reads Gold Parquet, loads into BigQuery
+
     @task
     def drift_task(enriched_path: str) -> None:
         """Run statistical drift detection. Observability only — never fails the DAG."""
@@ -162,6 +179,7 @@ def sales_pipeline_dag():
     validated_cleaned_path = quality_cleaned_task(cleaned_path)  # Stage 4 (gate)
     enriched_path = engineer_task(validated_cleaned_path)  # Stage 5
     loaded_path = load_task(enriched_path)  # Stage 6
+    load_bigquery_task(loaded_path)  # Stage 6.5 (v2.0) — BigQuery sync, independent of drift/profile below
     drift_task(loaded_path)  # Stage 7 (observability only)
     profile_task(loaded_path)  # Stage 8 (observability only)
 
