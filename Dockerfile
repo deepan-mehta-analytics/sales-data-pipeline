@@ -166,12 +166,14 @@ FROM apache/airflow:3.3.0-python3.11 AS airflow-runtime
 # Run pip installs as the image's non-root 'airflow' user (its documented convention).
 USER airflow
 
-# Copy only the dependency manifest so Docker layer caching skips the
-# install step unless requirements.txt actually changes.
-COPY requirements.txt /tmp/requirements.txt
+# Copy only the dependency manifests so Docker layer caching skips the
+# install step unless either file actually changes.
+COPY requirements.txt requirements-gcp.txt /tmp/
 
 # Install this repo's runtime deps against Airflow's own constraints file so
 # pip's resolver cannot silently break Airflow's pinned dependency graph —
 # this is the pattern Apache's own docs recommend for extending the image.
-RUN pip install --no-cache-dir -r /tmp/requirements.txt \
+# requirements-gcp.txt (google-cloud-bigquery) is installed here only — the
+# pipeline and api Docker stages never see it, keeping those images lean.
+RUN pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-gcp.txt \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.11.txt"

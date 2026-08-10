@@ -1,0 +1,11 @@
+# =============================================================================
+# requirements-gcp.txt
+# BigQuery client dependency for the v2.0 load_bigquery Airflow task.
+#
+# Isolated from requirements.txt so the pipeline and API Docker images stay
+# lean — only the airflow-runtime Docker stage installs this.
+#
+# Install with:  pip install -r requirements-gcp.txt
+# =============================================================================
+
+google-cloud-bigquery>=3.25.0   # BigQuery client — dataset/table creation, load jobs

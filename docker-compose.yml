@@ -51,6 +51,9 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'        # DAG is ready to trigger immediately, no manual unpause needed
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'            # Enables the scheduler healthcheck below
     PYTHONPATH: /opt/airflow/project                            # Lets DAG tasks `from src...` import this repo's pipeline code
+    GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}                          # v2.0 BigQuery sync — read by load_bigquery_task
+    BQ_DATASET_ID: ${BQ_DATASET_ID:-superstore_analytics}        # v2.0 BigQuery sync — dataset name
+    GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/opt/airflow/project/credentials/gcp-service-account.json}  # v2.0 — service-account key path inside the container
   volumes:
     - ./dags:/opt/airflow/dags                       # This repo's DAG file(s) — see Task 3
     - airflow-logs:/opt/airflow/logs                  # Airflow's own task logs (named volume, not host-mounted)
@@ -60,6 +63,7 @@ x-airflow-common:
     - ./database:/opt/airflow/project/database        # DuckDB output — same file the API service reads
     - ./reports:/opt/airflow/project/reports          # Profiling HTML report output
     - ./logs:/opt/airflow/project/logs                # This project's JSON audit log (src/utils/logger.py), distinct from the airflow-logs volume above
+    - ./credentials:/opt/airflow/project/credentials:ro  # GCP service-account key for the BigQuery sync task (v2.0) — read-only
   user: "${AIRFLOW_UID:-50000}:0"   # Matches the official image's non-root user
   depends_on:
     &airflow-common-depends-on
