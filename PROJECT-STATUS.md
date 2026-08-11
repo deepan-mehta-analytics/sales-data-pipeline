@@ -1,6 +1,6 @@
 # PROJECT-STATUS.md — Superstore Sales Data Pipeline
 
-> **Last updated:** 2026-08-10  
+> **Last updated:** 2026-08-11  
 > **Maintainer:** Deepan Mehta  
 > **Repo:** `deepan-mehta-analytics/sales-data-pipeline`
 
@@ -13,7 +13,7 @@
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
 | **Phase** | v2.0 in progress — Airflow DAG and BigQuery sync shipped and live-verified; incremental load, MLflow tracking pending |
-| **Latest commit** | `a2ad51fd` — `docs: add v2.4 Conversational Analytics Agent to the roadmap` |
+| **Latest commit** | `6bde0341` — `build: single-source the google-cloud-bigquery pin` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -163,20 +163,20 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-10 — see `git log` for full history, 58 commits total)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-11 — see `git log` for full history, 68 commits total)*
 
 | Hash | Message |
 |---|---|
-| `a2ad51fd` | docs: add v2.4 Conversational Analytics Agent to the roadmap |
-| `31644ef8` | docs: sync PROJECT-STATUS.md's commit pointer and history table to main's tip |
-| `1022bc4f` | style: apply black formatting to feature_engineer regression test |
-| `edd90973` | docs: sync PROJECT-STATUS.md and README.md to post-merge main |
-| `cf4ce5ca` | fix(feature-engineer): cast Quantity once for both np.where operands |
-| `8a3b72a6` | fix(docker): mount project logs volume, narrow airflow-init idempotency |
-| `c59eaf00` | fix(dag): sync quality-gate, drift, and profiling flags with config.yaml |
-| `58a42d06` | docs: fix remaining stale product-performance count in docs/ |
-| `1ebcd5b9` | docs: document the Airflow DAG (Phase 6 / v2.0) |
-| `cc68e5e9` | fix(feature-engineer): cast shipping_days to float64 before np.select comparisons |
+| `6bde0341` | build: single-source the google-cloud-bigquery pin |
+| `0747ab84` | fix(docker): stop host env from overriding the BigQuery credential path |
+| `2bee7f82` | docs: correct test-suite table and DAG task-count drift |
+| `c934580e` | docs: add BigQuery sync verification evidence |
+| `6bc04846` | docs: document the BigQuery cloud analytical store (v2.0) |
+| `4129cb79` | feat(airflow): add load_bigquery_task to sales_pipeline_dag |
+| `8877be68` | feat(load): add BigQuery sync module with unit tests |
+| `7d438339` | feat(airflow): add BigQuery client to airflow-runtime image |
+| `115e0eac` | chore(gcp): wire BigQuery service-account credential path (gitignored) |
+| `d92ac8cc` | docs: sync PROJECT-STATUS.md's commit pointer to main's actual tip |
 
 ---
 
