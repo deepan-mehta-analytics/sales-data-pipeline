@@ -4,6 +4,7 @@
 # =============================================================================
 
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -11,7 +12,8 @@ import yaml
 
 from scripts.simulate_new_orders import generate_new_orders
 
-SCHEMA_PATH = "config/schema.yaml"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]  # tests/unit → project root
+SCHEMA_PATH = PROJECT_ROOT / "config" / "schema.yaml"
 
 
 @pytest.fixture
