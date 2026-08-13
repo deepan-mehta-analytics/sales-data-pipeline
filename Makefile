@@ -17,7 +17,7 @@
 # so it always executes the recipe, even if a file with the same name exists.
 # =============================================================================
 
-.PHONY: install run profile api test test-unit test-int test-api lint format clean help airflow-init airflow-up airflow-down
+.PHONY: install run profile api simulate-new-orders test test-unit test-int test-api lint format clean help airflow-init airflow-up airflow-down
 
 # ---------------------------------------------------------------------------
 # Python interpreter — override with: make run PYTHON=python3.11
@@ -48,6 +48,17 @@ run:
 	@echo "🚀 Running the full ETL pipeline..."
 	$(PYTHON) orchestration/pipeline.py
 	@echo "✅ Pipeline run complete."
+
+# ---------------------------------------------------------------------------
+# simulate-new-orders
+# Append N synthetic new orders to data/bronze/sales_data.csv, so the next
+# pipeline run has genuinely new rows for its incremental watermark logic
+# to pick up. Demo/testing tool only — never run in CI.
+# ---------------------------------------------------------------------------
+simulate-new-orders:
+	@echo "🎲 Generating synthetic new orders..."
+	$(PYTHON) scripts/simulate_new_orders.py --count 25
+	@echo "✅ New synthetic orders appended to data/bronze/sales_data.csv."
 
 # ---------------------------------------------------------------------------
 # profile
@@ -203,6 +214,7 @@ help:
 	@echo "────────────────────────────────────────────────────"
 	@echo "  make install    Install all dependencies and git hooks"
 	@echo "  make run        Execute the full ETL pipeline"
+	@echo "  make simulate-new-orders  Append 25 synthetic new orders (demo tool)"
 	@echo "  make profile    Install ydata-profiling and run with full HTML report"
 	@echo "  make api        Install API deps and start FastAPI on port 8000"
 	@echo "  make airflow-init  One-time Airflow setup"
