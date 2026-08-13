@@ -132,6 +132,7 @@ sales-data-pipeline/
 │
 ├── docs/
 │   ├── architecture.md             ← DAG diagram + design decisions
+│   ├── Bronze_Silver_Gold.md       ← Medallion layers mapped to actual modules/files
 │   └── data_dictionary.md          ← All 34 columns documented
 │
 ├── logs/

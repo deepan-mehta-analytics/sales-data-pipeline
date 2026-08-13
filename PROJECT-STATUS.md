@@ -1,6 +1,6 @@
 # PROJECT-STATUS.md — Superstore Sales Data Pipeline
 
-> **Last updated:** 2026-08-11  
+> **Last updated:** 2026-08-13  
 > **Maintainer:** Deepan Mehta  
 > **Repo:** `deepan-mehta-analytics/sales-data-pipeline`
 
@@ -13,7 +13,7 @@
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
 | **Phase** | v2.0 in progress — Airflow DAG and BigQuery sync shipped and live-verified; incremental load, MLflow tracking pending |
-| **Latest commit** | `6bde0341` — `build: single-source the google-cloud-bigquery pin` |
+| **Latest commit** | `72bef63e` — `docs: add Bronze/Silver/Gold architecture reference doc` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -33,7 +33,7 @@
 | 7 — Orchestrate | DAG-style orchestrator with stage timing and quality gates | ✅ Done | `orchestration/pipeline.py` |
 | 8 — CI/CD | Lint + unit + integration on push; daily scheduled run | ✅ Done | `.github/workflows/` |
 | 9 — Docker | Multi-stage container build + Compose | ✅ Done | `Dockerfile`, `docker-compose.yml` |
-| 10 — Documentation | README, architecture.md, data_dictionary.md, evidence screenshots | ✅ Done | `docs/`, `README.md` |
+| 10 — Documentation | README, architecture.md, Bronze_Silver_Gold.md, data_dictionary.md, evidence screenshots | ✅ Done | `docs/`, `README.md` |
 
 ---
 
@@ -163,10 +163,12 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-11 — see `git log` for full history, 68 commits total)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history, 70 commits total)*
 
 | Hash | Message |
 |---|---|
+| `72bef63e` | docs: add Bronze/Silver/Gold architecture reference doc |
+| `2c15293b` | docs: sync PROJECT-STATUS.md's commit pointer to main's post-merge tip |
 | `6bde0341` | build: single-source the google-cloud-bigquery pin |
 | `0747ab84` | fix(docker): stop host env from overriding the BigQuery credential path |
 | `2bee7f82` | docs: correct test-suite table and DAG task-count drift |
@@ -175,8 +177,6 @@
 | `4129cb79` | feat(airflow): add load_bigquery_task to sales_pipeline_dag |
 | `8877be68` | feat(load): add BigQuery sync module with unit tests |
 | `7d438339` | feat(airflow): add BigQuery client to airflow-runtime image |
-| `115e0eac` | chore(gcp): wire BigQuery service-account credential path (gitignored) |
-| `d92ac8cc` | docs: sync PROJECT-STATUS.md's commit pointer to main's actual tip |
 
 ---
 
