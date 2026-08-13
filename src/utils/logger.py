@@ -19,6 +19,40 @@ from pathlib import Path  # Cross-platform path resolution
 import yaml  # Reads logging settings from config.yaml
 
 # ---------------------------------------------------------------------------
+# Standard LogRecord attributes — every field a LogRecord has regardless of
+# any caller-supplied extra={...}. Used by JsonFormatter to distinguish
+# "extra" fields (added dynamically as attributes) from the record's own
+# built-in attributes when merging extras into the JSON payload.
+# ---------------------------------------------------------------------------
+_STANDARD_LOG_RECORD_ATTRS = frozenset(
+    (
+        "args",
+        "asctime",
+        "created",
+        "exc_info",
+        "exc_text",
+        "filename",
+        "funcName",
+        "levelname",
+        "levelno",
+        "lineno",
+        "message",
+        "module",
+        "msecs",
+        "msg",
+        "name",
+        "pathname",
+        "process",
+        "processName",
+        "relativeCreated",
+        "stack_info",
+        "taskName",  # Python 3.12+ only, harmless to include on earlier versions
+        "thread",
+        "threadName",
+    )
+)
+
+# ---------------------------------------------------------------------------
 # Project root and config path
 # Resolving paths relative to this file makes the module location-agnostic;
 # it works whether executed from the project root, src/, or inside Docker.
@@ -80,6 +114,12 @@ class JsonFormatter(logging.Formatter):
         # If an exception was captured (e.g. logger.exception(...)), append the traceback.
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)  # Multi-line traceback string
+
+        # Merge any caller-supplied extra={...} fields — they land as dynamic
+        # attributes on the record rather than in a fixed location, so pick
+        # out whatever isn't one of the standard LogRecord attributes.
+        extras = {k: v for k, v in record.__dict__.items() if k not in _STANDARD_LOG_RECORD_ATTRS}
+        payload.update(extras)  # Merge extras in without overriding the core fields set above
 
         # Serialise to compact JSON (no indentation) with consistent key ordering.
         return json.dumps(payload, ensure_ascii=False, default=str)
