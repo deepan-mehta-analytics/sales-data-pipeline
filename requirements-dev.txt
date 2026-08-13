@@ -43,3 +43,10 @@ seaborn>=0.12.0        # Statistical visualisation built on matplotlib
 # tool only, never imported by the production pipeline in src/)
 # ---------------------------------------------------------------------------
 Faker>=22.0.0           # Realistic synthetic data generation
+
+# ---------------------------------------------------------------------------
+# MLflow run tracking — mocked in tests, no real tracking server required
+# Included by reference (not re-pinned) so tests always resolve the same
+# mlflow version the mlflow-runtime image installs — single source of truth.
+# ---------------------------------------------------------------------------
+-r requirements-mlflow.txt   # Needed to import src/utils/mlflow_tracker.py in tests (mocked or local ./mlruns fallback)

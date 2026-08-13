@@ -1,0 +1,12 @@
+# =============================================================================
+# requirements-mlflow.txt
+# Run-tracking dependency for the v2.0 MLflow integration.
+#
+# Isolated from requirements.txt so the pipeline and API Docker images stay
+# lean — only the mlflow-runtime Docker stage, and any developer who wants
+# local run tracking, installs this.
+#
+# Install with:  pip install -r requirements-mlflow.txt
+# =============================================================================
+
+mlflow>=2.14.0   # Tracking client + `mlflow server` CLI (used by the mlflow-runtime Docker stage)
