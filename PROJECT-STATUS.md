@@ -13,7 +13,7 @@
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
 | **Phase** | v2.0 in progress — Airflow DAG and BigQuery sync shipped and live-verified; incremental load, MLflow tracking pending |
-| **Latest commit** | `72bef63e` — `docs: add Bronze/Silver/Gold architecture reference doc` |
+| **Latest commit** | `8b4ca4a0` — `docs: document the incremental load feature (v2.0)` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
