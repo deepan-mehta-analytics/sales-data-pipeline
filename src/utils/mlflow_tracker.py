@@ -70,7 +70,7 @@ def start_run(tags: dict, run_name: Optional[str] = None) -> Optional[str]:
     try:
         active_run = mlflow.start_run(tags=tags, run_name=run_name)  # Opens a new run
         run_id = active_run.info.run_id  # Capture the ID before releasing the active context
-        mlflow.end_run()  # Release the active-run context; resumed later by run_id
+        mlflow.end_run(status="RUNNING")  # Release the active-run context; leave run in RUNNING state until end_run() terminates it
         return run_id
     except Exception:
         logger.warning("MLflow start_run failed; run tracking disabled for this run", exc_info=True)
