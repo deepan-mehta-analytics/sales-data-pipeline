@@ -15,7 +15,7 @@
 # =============================================================================
 
 from pathlib import Path  # Cross-platform path handling
-from typing import Tuple  # Type-hint for the (DataFrame, dict) return value
+from typing import Optional, Tuple  # Type hints for the (DataFrame, dict) return value and optional since
 
 import pandas as pd  # Core data-manipulation library
 import yaml  # Reads config.yaml and schema.yaml
@@ -140,25 +140,31 @@ def _validate_columns(df: pd.DataFrame, schema: dict) -> None:
 # =============================================================================
 
 
-def extract() -> Tuple[pd.DataFrame, dict]:
+def extract(since: Optional[str] = None, buffer_days: int = 0) -> Tuple[pd.DataFrame, dict]:
     """
-    Read the raw Superstore CSV, apply correct dtypes, and validate the schema.
+    Read the raw Superstore CSV, apply correct dtypes, validate the schema,
+    and optionally filter to only rows on/after a watermark date.
 
-    Steps
-    -----
-    1. Load config.yaml to get the bronze file path and CSV properties.
-    2. Load schema.yaml to get expected column names and dtypes.
-    3. Read the CSV with the correct encoding, separator, and dtype map.
-    4. Validate that all expected columns are present.
-    5. Return the raw DataFrame plus a metadata dict for the pipeline log.
+    Parameters
+    ----------
+    since       : str, optional
+        ISO date string (YYYY-MM-DD). When provided, only rows whose Order
+        Date falls on/after (since - buffer_days) are returned — this is
+        the incremental-load path. When None (the default), every row in
+        the CSV is returned, exactly as before this parameter existed.
+    buffer_days : int, optional
+        Widens the since threshold backwards to re-check for late-arriving
+        rows near the watermark. Ignored when since is None.
 
     Returns
     -------
     df : pd.DataFrame
-        Raw DataFrame containing every row and column from the CSV.
-        No cleaning or transformation has been applied at this stage.
+        Raw DataFrame — full or filtered depending on `since`. No cleaning
+        or transformation has been applied at this stage. Order Date and
+        Ship Date remain string (object) dtype either way.
     metadata : dict
-        Audit information: row count, column count, source path, etc.
+        Audit information: row count, column count, source path, since,
+        and rows_before_filter.
 
     Raises
     ------
@@ -167,7 +173,9 @@ def extract() -> Tuple[pd.DataFrame, dict]:
     ValueError
         If required columns are missing from the loaded file.
     """
-    logger.info("Starting extraction step")  # Mark the beginning of this pipeline stage
+    logger.info(
+        "Starting extraction step", extra={"since": since, "buffer_days": buffer_days}
+    )  # Log with watermark info
 
     config, schema = _load_configs()  # Load both YAML config files
 
@@ -205,17 +213,33 @@ def extract() -> Tuple[pd.DataFrame, dict]:
     # Validate that all expected columns are present before proceeding.
     _validate_columns(df, schema)
 
+    rows_before_filter = len(df)  # Row count prior to any watermark filtering
+
+    # -------------------------------------------------------------------
+    # Incremental filter: keep only rows on/after (since - buffer_days).
+    # Order Date stays string dtype in the returned df — this parses it
+    # into a throwaway Series purely to build a boolean mask, exactly like
+    # cleaner.py's own parse_dates() does later in the pipeline, so the
+    # comparison is correct regardless of MM/DD/YYYY string ordering.
+    # -------------------------------------------------------------------
+    if since is not None:
+        order_dates = pd.to_datetime(df["Order Date"], format=config["source"]["date_format"])  # Parse Order Date
+        threshold = pd.to_datetime(since) - pd.Timedelta(days=buffer_days)  # Calculate effective threshold
+        df = df[order_dates >= threshold].reset_index(drop=True)  # Keep rows >= threshold, reset index
+
     # Build a metadata dict that the orchestrator will include in the run report.
     metadata = {
         "source_path": str(bronze_path),  # Absolute path to the source file
-        "row_count": len(df),  # Total rows ingested from the CSV
+        "row_count": len(df),  # Rows returned after any filtering
         "column_count": len(df.columns),  # Number of columns in the raw file
         "columns": list(df.columns),  # Ordered list of column names
+        "since": since,  # The watermark this call filtered against (None = full load)
+        "rows_before_filter": rows_before_filter,  # Row count before the incremental filter
     }
 
     logger.info(  # Log the extraction summary for the pipeline audit trail
         "Extraction complete",
-        extra={"rows": metadata["row_count"], "columns": metadata["column_count"]},
+        extra={"rows": metadata["row_count"], "columns": metadata["column_count"], "since": since},
     )
 
-    return df, metadata  # Return the raw DataFrame and the audit metadata
+    return df, metadata  # Return the (possibly filtered) DataFrame and the audit metadata

@@ -178,3 +178,49 @@ class TestExtract:
 
         with pytest.raises(FileNotFoundError, match="Bronze CSV not found"):
             extract()
+
+
+# =============================================================================
+# Tests for watermark-based incremental filtering
+# =============================================================================
+
+
+class TestExtractWatermarkFiltering:
+    """Tests for extract()'s optional since/buffer_days incremental filtering."""
+
+    def test_since_none_returns_full_dataset(self):
+        """Explicitly passing since=None must match calling extract() with no args."""
+        df_default, _ = extract()  # Call with no arguments (the default)
+        df_explicit_none, _ = extract(since=None)  # Explicitly pass since=None
+
+        assert len(df_default) == len(df_explicit_none)  # Both must return the same number of rows
+
+    def test_since_filters_to_fewer_rows(self):
+        """A since date well within the dataset's range must return fewer rows than a full load."""
+        df_full, _ = extract()  # Get all rows for comparison
+        df_filtered, meta = extract(since="2017-06-01", buffer_days=0)  # Filter to 2017-06-01 onward
+
+        assert len(df_filtered) > 0, "Expected at least some orders on/after 2017-06-01"  # Must have rows
+        assert len(df_filtered) < len(df_full), "Filtered result must be smaller than the full dataset"  # Fewer rows
+        assert meta["since"] == "2017-06-01"  # Metadata tracks the since value
+        assert meta["rows_before_filter"] == len(df_full)  # Metadata records rows before filtering
+
+    def test_since_far_future_returns_empty(self):
+        """A since date after every real order date must return zero rows, not an error."""
+        df_filtered, meta = extract(since="2099-01-01", buffer_days=0)  # Far future date
+
+        assert len(df_filtered) == 0  # No rows after 2099
+        assert meta["row_count"] == 0  # Metadata confirms zero rows
+
+    def test_buffer_days_widens_the_window(self):
+        """A larger buffer_days must never return fewer rows than a smaller one for the same since date."""
+        df_no_buffer, _ = extract(since="2017-12-01", buffer_days=0)  # No buffer
+        df_with_buffer, _ = extract(since="2017-12-01", buffer_days=7)  # 7-day buffer widens the window
+
+        assert len(df_with_buffer) >= len(df_no_buffer)  # More buffer means >= rows
+
+    def test_filtered_rows_still_have_string_order_date(self):
+        """Filtering must not change Order Date's dtype — it stays a string, parsed later by cleaner.py."""
+        df_filtered, _ = extract(since="2017-06-01", buffer_days=0)  # Filtered result
+
+        assert df_filtered["Order Date"].dtype == object  # Still string/object dtype after filtering
