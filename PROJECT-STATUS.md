@@ -167,10 +167,13 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history, 70 commits total)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history, 73 commits total)*
 
 | Hash | Message |
 |---|---|
+| `f0e4035b` | fix(docs): correct test counts and phase status for incremental load completion |
+| `bc2e5b03` | docs: sync PROJECT-STATUS.md's commit pointer to latest doc commit |
+| `8b4ca4a0` | docs: document the incremental load feature (v2.0) |
 | `72bef63e` | docs: add Bronze/Silver/Gold architecture reference doc |
 | `2c15293b` | docs: sync PROJECT-STATUS.md's commit pointer to main's post-merge tip |
 | `6bde0341` | build: single-source the google-cloud-bigquery pin |
@@ -178,9 +181,6 @@
 | `2bee7f82` | docs: correct test-suite table and DAG task-count drift |
 | `c934580e` | docs: add BigQuery sync verification evidence |
 | `6bc04846` | docs: document the BigQuery cloud analytical store (v2.0) |
-| `4129cb79` | feat(airflow): add load_bigquery_task to sales_pipeline_dag |
-| `8877be68` | feat(load): add BigQuery sync module with unit tests |
-| `7d438339` | feat(airflow): add BigQuery client to airflow-runtime image |
 
 ---
 
