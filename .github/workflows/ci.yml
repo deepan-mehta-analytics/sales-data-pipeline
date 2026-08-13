@@ -72,19 +72,19 @@ jobs:
       # Step 5: Check code formatting with black (--check mode: no changes made)
       # -----------------------------------------------------------------------
       - name: Check formatting (black)
-        run: black --check src/ tests/ orchestration/ api/   # Fail if any file is not black-formatted
+        run: black --check src/ tests/ orchestration/ api/ scripts/   # Fail if any file is not black-formatted
 
       # -----------------------------------------------------------------------
       # Step 6: Check import ordering with isort (--check-only mode)
       # -----------------------------------------------------------------------
       - name: Check import order (isort)
-        run: isort --check-only src/ tests/ orchestration/ api/   # Fail if imports are not sorted
+        run: isort --check-only src/ tests/ orchestration/ api/ scripts/   # Fail if imports are not sorted
 
       # -----------------------------------------------------------------------
       # Step 7: Run flake8 linter to catch PEP 8 style violations and errors
       # -----------------------------------------------------------------------
       - name: Lint with flake8
-        run: flake8 src tests orchestration api --max-line-length=120 --exclude=__pycache__,*.pyc
+        run: flake8 src tests orchestration api scripts --max-line-length=120 --exclude=__pycache__,*.pyc
       # -----------------------------------------------------------------------
       # Step 8: Run unit tests with coverage measurement
       # --cov=src:         measure coverage for the src/ package
