@@ -299,7 +299,7 @@ def _write_fact_sales(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, full_ref
     before = con.execute("SELECT COUNT(*) FROM fact_sales").fetchone()[0]
     con.register("_new_batch", df)
     con.execute("""
-        INSERT INTO fact_sales
+        INSERT INTO fact_sales BY NAME
         SELECT * FROM _new_batch AS nb
         WHERE NOT EXISTS (
             SELECT 1 FROM fact_sales fs WHERE fs."Row ID" = nb."Row ID"
