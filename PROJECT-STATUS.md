@@ -13,7 +13,7 @@
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
 | **Phase** | v2.0 in progress — Airflow DAG, BigQuery sync, and incremental load shipped and live-verified; MLflow tracking pending |
-| **Latest commit** | `eed5796e` — `docs: sync PROJECT-STATUS.md's Git History Snapshot to include recent commits` |
+| **Latest commit** | `887fac4e` — `fix(logging): merge extra={...} fields into the JSON log payload` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -167,10 +167,13 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history; 84 commits as of `eed5796e`)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history; 92 commits as of `887fac4e`)*
 
 | Hash | Message |
 |---|---|
+| `887fac4e` | fix(logging): merge extra={...} fields into the JSON log payload |
+| `3ee4d02e` | fix(pipeline): run drift detection and profiling on the full accumulated dataset |
+| `ccce1693` | test(incremental): back up and restore every file the pipeline mutates |
 | `f0e4035b` | fix(docs): correct test counts and phase status for incremental load completion |
 | `bc2e5b03` | docs: sync PROJECT-STATUS.md's commit pointer to latest doc commit |
 | `8b4ca4a0` | docs: document the incremental load feature (v2.0) |
@@ -178,9 +181,6 @@
 | `2c15293b` | docs: sync PROJECT-STATUS.md's commit pointer to main's post-merge tip |
 | `6bde0341` | build: single-source the google-cloud-bigquery pin |
 | `0747ab84` | fix(docker): stop host env from overriding the BigQuery credential path |
-| `2bee7f82` | docs: correct test-suite table and DAG task-count drift |
-| `c934580e` | docs: add BigQuery sync verification evidence |
-| `6bc04846` | docs: document the BigQuery cloud analytical store (v2.0) |
 
 ---
 
@@ -228,7 +228,7 @@ Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docke
 | DuckDB read-only dependency | `api/database.py` | ✅ Done — per-request connection, 503 guard |
 | Pydantic response schemas | `api/models.py` | ✅ Done — 4 typed models |
 | API requirements isolation | `requirements-api.txt` | ✅ Done — fastapi, uvicorn, httpx |
-| API smoke tests | `tests/integration/test_api.py` | ✅ Done — 14 tests |
+| API smoke tests | `tests/integration/test_api.py` | ✅ Done — 15 tests |
 | Docker API stage | `Dockerfile` (stages 3 + 4) | ✅ Done — api-builder + api-runtime |
 | Docker Compose api service | `docker-compose.yml` | ✅ Done — port 8000, DuckDB volume |
 | GHCR release workflow | `.github/workflows/release.yml` | ✅ Done — pipeline + API images on v* tags |

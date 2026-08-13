@@ -158,7 +158,8 @@ sales-data-pipeline/
 │   │   ├── profiler.py            ← v1.1: HTML data-profiling report generator
 │   │   └── drift_detector.py     ← v1.1: Statistical drift detection vs prior run
 │   └── utils/
-│       └── logger.py              ← Centralised JSON-structured logger
+│       ├── logger.py               ← Centralised JSON-structured logger
+│       └── pipeline_state.py       ← v2.0: watermark storage for incremental load
 │
 ├── reports/                        ← Generated profiling HTML reports (gitignored)
 │
