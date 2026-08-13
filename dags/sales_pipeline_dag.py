@@ -33,6 +33,7 @@ from src.quality.profiler import generate_profile  # HTML data-profiling report 
 from src.quality.validators import run_quality_checks  # Data quality validation
 from src.transform.cleaner import clean  # Silver-layer cleaning
 from src.transform.feature_engineer import engineer  # Feature engineering
+from src.utils.pipeline_state import get_watermark, set_watermark  # Incremental-load watermark storage
 
 # Project root as mounted inside the Airflow containers (see docker-compose.yml x-airflow-common).
 PROJECT_ROOT = Path("/opt/airflow/project")  # Matches the volume mount target, not the image's own /opt/airflow
@@ -57,6 +58,8 @@ _CONFIG = _load_config()  # Parsed config/config.yaml contents
 FAIL_ON_QUALITY_ERROR = _CONFIG.get("pipeline", {}).get("fail_on_quality_error", True)  # Quality-gate enforcement flag
 DRIFT_THRESHOLD = _CONFIG.get("pipeline", {}).get("drift_threshold", 0.05)  # Relative drift threshold (5% default)
 GENERATE_PROFILE = _CONFIG.get("pipeline", {}).get("generate_profile", True)  # Whether to run the profiling stage
+INCREMENTAL_BUFFER_DAYS = _CONFIG.get("pipeline", {}).get("incremental_buffer_days", 3)  # Late-arrival re-check window
+DB_PATH = PROJECT_ROOT / _CONFIG["paths"]["database"]  # Resolved DuckDB path — same file load_task writes to
 
 
 def _tmp_dir(run_id: str) -> Path:
@@ -79,14 +82,17 @@ def _tmp_dir(run_id: str) -> Path:
     catchup=False,  # Do not backfill historical runs
     max_active_runs=1,  # Single writer: load_task shares data/silver, data/gold, database/superstore.duckdb
     tags=["sales-pipeline", "etl", "portfolio"],  # UI filter tags
+    params={"full_refresh": False},  # Trigger with --conf '{"full_refresh": true}' to force a full reload
 )
 def sales_pipeline_dag():
     """Superstore Sales ETL pipeline, orchestrated stage-by-stage via Airflow."""
 
     @task
-    def extract_task(run_id: str = None) -> str:
+    def extract_task(run_id: str = None, params: dict = None) -> str:
         """Run the extract stage; persist the raw DataFrame for the next task."""
-        raw_df, metadata = extract()  # Bronze-layer CSV ingestion (unchanged from src/)
+        full_refresh = bool((params or {}).get("full_refresh", False))  # Extract full_refresh flag from DAG params
+        watermark = None if full_refresh else get_watermark(DB_PATH)  # Get stored watermark unless doing full reload
+        raw_df, metadata = extract(since=watermark, buffer_days=INCREMENTAL_BUFFER_DAYS)  # Bronze-layer CSV ingestion
         out_path = _tmp_dir(run_id) / "raw.parquet"  # This task's hand-off file
         raw_df.to_parquet(out_path, index=False)  # Persist for quality_raw_task to read
         return str(out_path)  # Hand the path (not the DataFrame) forward via XCom
@@ -132,10 +138,17 @@ def sales_pipeline_dag():
         return str(out_path)  # Hand the path forward
 
     @task
-    def load_task(enriched_path: str) -> str:
-        """Run the load stage: write Silver/Gold Parquet and populate DuckDB."""
+    def load_task(enriched_path: str, run_id: str = None, params: dict = None) -> str:
+        """Run the load stage: write Silver/Gold Parquet, populate DuckDB, advance the watermark."""
+        full_refresh = bool((params or {}).get("full_refresh", False))  # Extract full_refresh flag from DAG params
         enriched_df = pd.read_parquet(enriched_path)  # Reload the enriched DataFrame
-        load(enriched_df)  # Writes data/silver, data/gold, and database/superstore.duckdb (unchanged from src/)
+        load_meta = load(enriched_df, full_refresh=full_refresh)  # Writes data/silver, data/gold, DuckDB
+
+        # Advance the stored watermark only now that load() has returned
+        # without raising — a failed task must never advance the watermark.
+        if load_meta.get("watermark_candidate"):  # Check if a watermark_candidate was produced
+            set_watermark(DB_PATH, load_meta["watermark_candidate"], run_id=run_id or "unknown")  # Store it
+
         return enriched_path  # Pass the path through so drift/profile tasks can still read it
 
     @task(retries=2, retry_delay=timedelta(minutes=2))
