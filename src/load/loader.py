@@ -21,7 +21,6 @@
 # =============================================================================
 
 from pathlib import Path  # Cross-platform path resolution and directory creation
-from typing import Dict  # Type hint
 
 import duckdb  # Embedded OLAP analytical database
 import pandas as pd  # Core data-manipulation library
@@ -264,80 +263,57 @@ def build_product_performance(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # =============================================================================
-# DuckDB loader
+# DuckDB fact_sales writer
 # =============================================================================
 
 
-def _load_to_duckdb(
-    silver_df: pd.DataFrame,
-    gold_tables: Dict[str, pd.DataFrame],
-    db_path: Path,
-) -> None:
+def _write_fact_sales(con: duckdb.DuckDBPyConnection, df: pd.DataFrame, full_refresh: bool) -> int:
     """
-    Create (or replace) all tables in the DuckDB analytical database.
+    Write a batch into fact_sales — either a full reload (full_refresh=True,
+    or fact_sales doesn't exist yet) or an incremental insert of only rows
+    whose "Row ID" isn't already present.
 
-    The database file is created automatically if it does not exist.
-    All tables are replaced on each pipeline run to ensure idempotency —
-    running the pipeline twice produces the same result as running it once.
-
-    Parameters
-    ----------
-    silver_df   : pd.DataFrame             Enriched silver DataFrame (fact table).
-    gold_tables : dict[str, pd.DataFrame]  Gold aggregation DataFrames by table name.
-    db_path     : Path                     Absolute path to the .duckdb file.
+    Returns
+    -------
+    int
+        Number of rows actually inserted by this call. 0 for an empty batch,
+        or for a batch that's entirely rows already present (e.g. a
+        late-arrival buffer re-check that found nothing new).
     """
-    db_path.parent.mkdir(parents=True, exist_ok=True)  # Create the database directory
+    table_exists = (
+        con.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'fact_sales'").fetchone()[0] > 0
+    )
 
-    # Connect to DuckDB, creating the file if it does not exist.
-    # The connection is used as a context manager so it closes cleanly on exit.
-    con = duckdb.connect(str(db_path))
-
-    try:
-        # -------------------------------------------------------------------
-        # Fact table: fact_sales
-        # The full enriched silver DataFrame is loaded as the central fact
-        # table.  Downstream gold views / tables are built from this.
-        # -------------------------------------------------------------------
-        logger.info("Loading fact_sales into DuckDB")
-
-        # DROP TABLE IF EXISTS prevents errors on re-runs.
+    if full_refresh or not table_exists:
+        logger.info("Writing fact_sales (full reload)", extra={"rows": len(df), "full_refresh": full_refresh})
         con.execute("DROP TABLE IF EXISTS fact_sales")
+        con.register("_full_batch", df)
+        con.execute("CREATE TABLE fact_sales AS SELECT * FROM _full_batch")
+        con.unregister("_full_batch")
+        return len(df)
 
-        # Register the DataFrame as a DuckDB virtual table, then create a
-        # permanent table from it.  This is more reliable than relying on
-        # DuckDB's automatic DataFrame detection.
-        con.register("_silver_df", silver_df)  # Expose DataFrame to DuckDB's SQL engine
-        con.execute("CREATE TABLE fact_sales AS SELECT * FROM _silver_df")  # Materialise as permanent table
-        con.unregister("_silver_df")  # Remove the temporary view
+    if df.empty:
+        logger.info("No new rows to insert into fact_sales")
+        return 0
 
-        logger.info(
-            "fact_sales loaded",
-            extra={"rows": len(silver_df), "columns": len(silver_df.columns)},
+    before = con.execute("SELECT COUNT(*) FROM fact_sales").fetchone()[0]
+    con.register("_new_batch", df)
+    con.execute("""
+        INSERT INTO fact_sales
+        SELECT * FROM _new_batch AS nb
+        WHERE NOT EXISTS (
+            SELECT 1 FROM fact_sales fs WHERE fs."Row ID" = nb."Row ID"
         )
+        """)
+    con.unregister("_new_batch")
+    after = con.execute("SELECT COUNT(*) FROM fact_sales").fetchone()[0]
+    inserted = after - before
 
-        # -------------------------------------------------------------------
-        # Gold tables: one table per aggregation
-        # -------------------------------------------------------------------
-        for table_name, agg_df in gold_tables.items():  # Iterate over each gold aggregation
-            logger.info(f"Loading {table_name} into DuckDB")
-
-            con.execute(f"DROP TABLE IF EXISTS {table_name}")  # Drop old version if present
-
-            con.register("_agg_df", agg_df)  # Expose the aggregation to DuckDB SQL
-            con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM _agg_df")  # Materialise
-            con.unregister("_agg_df")  # Remove the temporary view
-
-            logger.info(
-                f"{table_name} loaded",
-                extra={"rows": len(agg_df), "columns": len(agg_df.columns)},
-            )
-
-        # Verify the tables exist by listing them.
-        tables = con.execute("SHOW TABLES").fetchdf()  # Query the DuckDB catalogue
-        logger.info("DuckDB tables", extra={"tables": tables["name"].tolist()})
-
-    finally:
-        con.close()  # Always close the connection to flush and release the file lock
+    logger.info(
+        "fact_sales incremental insert complete",
+        extra={"new_rows_inserted": inserted, "batch_size": len(df)},
+    )
+    return inserted
 
 
 # =============================================================================
@@ -345,74 +321,120 @@ def _load_to_duckdb(
 # =============================================================================
 
 
-def load(df: pd.DataFrame) -> dict:
+def load(df: pd.DataFrame, full_refresh: bool = False) -> dict:
     """
-    Execute the full loading pipeline: silver Parquet → gold Parquets → DuckDB.
+    Execute the full loading pipeline: incremental fact_sales write ->
+    re-read the full accumulated fact table -> gold Parquets + DuckDB
+    aggregation tables rebuilt from that full picture.
 
     Parameters
     ----------
     df : pd.DataFrame
-        Enriched silver-layer DataFrame (output of feature_engineer.engineer()).
+        Enriched silver-layer DataFrame — the NEW batch only when doing an
+        incremental load, or the complete dataset when full_refresh=True
+        or this is the first run ever (fact_sales doesn't exist yet).
+    full_refresh : bool, optional
+        When True, replaces fact_sales entirely instead of inserting.
 
     Returns
     -------
     metadata : dict
-        Loading statistics including paths written and DuckDB table names.
+        Loading statistics, including:
+        - rows_loaded: total rows in fact_sales AFTER this call (the full
+          accumulated count, not just this batch)
+        - new_rows_inserted: rows actually added by this call
+        - watermark_candidate: ISO date string (max Order Date in this
+          batch), or None if the batch was empty — the caller only advances
+          the stored watermark using this value, and only after this whole
+          function returns without raising
     """
-    logger.info("Starting load step", extra={"input_rows": len(df)})
+    logger.info("Starting load step", extra={"input_rows": len(df), "full_refresh": full_refresh})
 
     config = _load_config()  # Read paths and table names from config.yaml
-
-    # -----------------------------------------------------------------------
-    # 1. Save the enriched DataFrame as the silver Parquet file.
-    # -----------------------------------------------------------------------
-    silver_path = PROJECT_ROOT / config["paths"]["silver"]  # Resolve silver layer path
-    _save_parquet(df, silver_path, label="silver")  # Write to Parquet
-
-    # -----------------------------------------------------------------------
-    # 2. Build all gold-layer aggregations.
-    # -----------------------------------------------------------------------
-    logger.info("Building gold-layer aggregations")
-
-    gold_tables = {
-        "agg_sales_by_region": build_sales_by_region(df),  # Regional performance
-        "agg_sales_by_category": build_sales_by_category(df),  # Category / sub-cat performance
-        "agg_customer_segments": build_customer_segments(df),  # Segment KPIs
-        "agg_monthly_trends": build_monthly_trends(df),  # Time-series monthly data
-        "agg_product_performance": build_product_performance(df),  # Product ranking
-    }
-
-    # -----------------------------------------------------------------------
-    # 3. Save each gold aggregation as its own Parquet file.
-    # -----------------------------------------------------------------------
-    gold_paths = config["paths"]["gold"]  # Dict of {table_name: relative_path}
-
-    for table_name, agg_df in gold_tables.items():  # Iterate over each aggregation
-        # Derive the config key from the table name (strip 'agg_' prefix).
-        config_key = table_name.replace("agg_", "")  # e.g. 'agg_sales_by_region' → 'sales_by_region'
-
-        if config_key in gold_paths:  # Only write tables that have a declared output path
-            gold_path = PROJECT_ROOT / gold_paths[config_key]  # Resolve the absolute path
-            _save_parquet(agg_df, gold_path, label=table_name)  # Write to Parquet
-
-    # -----------------------------------------------------------------------
-    # 4. Load silver fact table and all gold aggregations into DuckDB.
-    # -----------------------------------------------------------------------
     db_path = PROJECT_ROOT / config["paths"]["database"]  # Resolve DuckDB file path
-    _load_to_duckdb(df, gold_tables, db_path)  # Execute the DuckDB load
+    db_path.parent.mkdir(parents=True, exist_ok=True)  # Create the database directory
 
-    # Build a metadata dict summarising what the load step produced.
+    con = duckdb.connect(str(db_path))
+    try:
+        new_rows_inserted = _write_fact_sales(con, df, full_refresh)
+
+        # Re-read the FULL accumulated fact table — gold aggregations and the
+        # Silver/Gold Parquet files must always reflect everything ever
+        # loaded, not just this run's new batch (see
+        # docs/superpowers/specs/2026-08-13-incremental-load-design.md, §5).
+        full_df = con.execute("SELECT * FROM fact_sales").fetchdf()
+
+        # -------------------------------------------------------------------
+        # Save the FULL accumulated DataFrame as the silver Parquet file.
+        # -------------------------------------------------------------------
+        silver_path = PROJECT_ROOT / config["paths"]["silver"]  # Resolve silver layer path
+        _save_parquet(full_df, silver_path, label="silver")  # Write to Parquet
+
+        # -------------------------------------------------------------------
+        # Build all gold-layer aggregations from the full accumulated data.
+        # -------------------------------------------------------------------
+        logger.info("Building gold-layer aggregations")
+
+        gold_tables = {
+            "agg_sales_by_region": build_sales_by_region(full_df),  # Regional performance
+            "agg_sales_by_category": build_sales_by_category(full_df),  # Category / sub-cat performance
+            "agg_customer_segments": build_customer_segments(full_df),  # Segment KPIs
+            "agg_monthly_trends": build_monthly_trends(full_df),  # Time-series monthly data
+            "agg_product_performance": build_product_performance(full_df),  # Product ranking
+        }
+
+        # -------------------------------------------------------------------
+        # Save each gold aggregation as its own Parquet file.
+        # -------------------------------------------------------------------
+        gold_paths = config["paths"]["gold"]  # Dict of {table_name: relative_path}
+
+        for table_name, agg_df in gold_tables.items():  # Iterate over each aggregation
+            config_key = table_name.replace("agg_", "")  # e.g. 'agg_sales_by_region' -> 'sales_by_region'
+
+            if config_key in gold_paths:  # Only write tables that have a declared output path
+                gold_path = PROJECT_ROOT / gold_paths[config_key]  # Resolve the absolute path
+                _save_parquet(agg_df, gold_path, label=table_name)  # Write to Parquet
+
+        # -------------------------------------------------------------------
+        # Load all gold aggregations into DuckDB (fact_sales already written
+        # by _write_fact_sales above).
+        # -------------------------------------------------------------------
+        for table_name, agg_df in gold_tables.items():
+            logger.info(f"Loading {table_name} into DuckDB")
+            con.execute(f"DROP TABLE IF EXISTS {table_name}")
+            con.register("_agg_df", agg_df)
+            con.execute(f"CREATE TABLE {table_name} AS SELECT * FROM _agg_df")
+            con.unregister("_agg_df")
+
+        tables = con.execute("SHOW TABLES").fetchdf()
+        logger.info("DuckDB tables", extra={"tables": tables["name"].tolist()})
+    finally:
+        con.close()  # Always close the connection to flush and release the file lock
+
+    # Compute the watermark candidate from THIS batch only (not the full
+    # accumulated data) — it represents "the newest Order Date this run
+    # actually saw", which is what the caller advances the stored watermark
+    # to, once the whole run has succeeded.
+    watermark_candidate = None
+    if not df.empty:
+        max_order_date = df["Order Date"].max()
+        if pd.notna(max_order_date):
+            watermark_candidate = pd.Timestamp(max_order_date).strftime("%Y-%m-%d")
+
     metadata = {
         "silver_path": str(silver_path),  # Silver Parquet file path
         "db_path": str(db_path),  # DuckDB file path
         "gold_tables": list(gold_tables.keys()),  # Names of gold tables created
-        "rows_loaded": len(df),  # Total rows in the fact table
+        "rows_loaded": len(full_df),  # Total rows in fact_sales after this call
+        "new_rows_inserted": new_rows_inserted,  # Rows actually added by this call
+        "watermark_candidate": watermark_candidate,  # New watermark, or None if batch was empty
     }
 
     logger.info(  # Log the load summary for the pipeline audit trail
         "Load step complete",
         extra={
             "rows_loaded": metadata["rows_loaded"],
+            "new_rows_inserted": metadata["new_rows_inserted"],
             "gold_tables": metadata["gold_tables"],
         },
     )
