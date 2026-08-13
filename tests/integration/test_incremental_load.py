@@ -4,9 +4,11 @@
 #
 # Runs the real pipeline twice against the real project paths (matching
 # test_pipeline.py's convention), with a synthetic batch of new orders
-# appended in between. Backs up and restores data/bronze/sales_data.csv and
-# database/superstore.duckdb around the whole test so the repo is never
-# left in a mutated state.
+# appended in between. Backs up and restores every real project file the
+# pipeline run mutates — data/bronze/sales_data.csv, database/superstore.duckdb,
+# data/silver/cleaned_sales.parquet, all 5 gold Parquet files, and
+# reports/run_stats_reference.json (the drift baseline) — around the whole
+# test so the repo is never left in a mutated state.
 # =============================================================================
 
 import sys
@@ -21,21 +23,42 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 BRONZE_PATH = PROJECT_ROOT / "data" / "bronze" / "sales_data.csv"
 DB_PATH = PROJECT_ROOT / "database" / "superstore.duckdb"
+SILVER_PATH = PROJECT_ROOT / "data" / "silver" / "cleaned_sales.parquet"
+GOLD_PATHS = [
+    PROJECT_ROOT / "data" / "gold" / "sales_by_region.parquet",
+    PROJECT_ROOT / "data" / "gold" / "sales_by_category.parquet",
+    PROJECT_ROOT / "data" / "gold" / "customer_segments.parquet",
+    PROJECT_ROOT / "data" / "gold" / "monthly_trends.parquet",
+    PROJECT_ROOT / "data" / "gold" / "product_performance.parquet",
+]
+DRIFT_REFERENCE_PATH = PROJECT_ROOT / "reports" / "run_stats_reference.json"
+
+# Every path mutated by a real pipeline run that this fixture must back up
+# and restore, beyond the always-present bronze CSV: DuckDB, the silver
+# Parquet, all gold Parquet files, and the drift reference JSON.
+RESTORABLE_PATHS = [DB_PATH, SILVER_PATH, *GOLD_PATHS, DRIFT_REFERENCE_PATH]
 
 
 @pytest.fixture
 def backup_and_restore_state():
-    """Snapshot the real bronze CSV and DuckDB file, restore them after the test."""
+    """
+    Snapshot the real bronze CSV plus every other file a real pipeline run
+    rewrites (DuckDB, silver Parquet, all 5 gold Parquet files, and the
+    drift reference JSON), then restore all of them after the test —
+    including deleting any of these files that didn't exist beforehand
+    but were created by the run.
+    """
     bronze_backup = BRONZE_PATH.read_bytes()
-    db_backup = DB_PATH.read_bytes() if DB_PATH.exists() else None
+    backups = {path: (path.read_bytes() if path.exists() else None) for path in RESTORABLE_PATHS}
 
     yield
 
     BRONZE_PATH.write_bytes(bronze_backup)
-    if db_backup is not None:
-        DB_PATH.write_bytes(db_backup)
-    elif DB_PATH.exists():
-        DB_PATH.unlink()
+    for path, backup in backups.items():
+        if backup is not None:
+            path.write_bytes(backup)
+        elif path.exists():
+            path.unlink()
 
 
 class TestIncrementalLoadEndToEnd:
