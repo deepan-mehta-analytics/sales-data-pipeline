@@ -14,7 +14,7 @@
 #   5. Run code style checks (black, isort)
 #   6. Run linting (flake8)
 #   7. Run unit tests with coverage reporting
-#   8. Run integration tests
+#   8. Run integration tests (pipeline, incremental load, API smoke)
 #   9. Upload coverage report to GitHub Actions summary
 # =============================================================================
 
@@ -109,7 +109,15 @@ jobs:
         run: pytest tests/integration/test_pipeline.py -v
 
       # -----------------------------------------------------------------------
-      # Step 10: Run API smoke tests (test DuckDB created in-fixture; no real DB needed)
+      # Step 10: Run incremental-load integration test (against the sample bronze CSV)
+      # -----------------------------------------------------------------------
+      - name: Run incremental load integration test
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: pytest tests/integration/test_incremental_load.py -v
+
+      # -----------------------------------------------------------------------
+      # Step 11: Run API smoke tests (test DuckDB created in-fixture; no real DB needed)
       # -----------------------------------------------------------------------
       - name: Run API smoke tests
         env:
@@ -117,7 +125,7 @@ jobs:
         run: pytest tests/integration/test_api.py -v
 
       # -----------------------------------------------------------------------
-      # Step 11: Upload coverage to Codecov for badge and trend tracking.
+      # Step 12: Upload coverage to Codecov for badge and trend tracking.
       # Requires CODECOV_TOKEN secret set in the repository settings:
       #   GitHub repo → Settings → Secrets → Actions → New repository secret
       #   Name: CODECOV_TOKEN  Value: <token from codecov.io>
@@ -131,7 +139,7 @@ jobs:
           fail_ci_if_error: false                # Do not fail CI if Codecov upload fails
 
       # -----------------------------------------------------------------------
-      # Step 12: Upload the coverage XML as a GitHub Actions artifact so it
+      # Step 13: Upload the coverage XML as a GitHub Actions artifact so it
       # can be inspected or forwarded to SonarCloud if needed.
       # -----------------------------------------------------------------------
       - name: Upload coverage report artifact
