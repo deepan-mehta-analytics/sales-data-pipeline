@@ -429,9 +429,10 @@ for the captured `bq query` / `bq show` evidence.
 
 ## 🔄 Incremental Load *(v2.0)*
 
-Every pipeline run — local, Docker, CI, or Airflow — now processes only
-order rows that are new since the last successful run, instead of
-re-reading and re-validating the entire dataset every time. A watermark
+Every pipeline run — local, Docker, CI, or Airflow — now runs quality
+checks, cleaning, and feature engineering only on order rows that are new
+since the last successful run, instead of re-validating and re-transforming
+the entire dataset every time. A watermark
 (the latest `Order Date` already processed) is stored in a `pipeline_state`
 table inside `database/superstore.duckdb`, and only advances after a full
 run succeeds — a failed run never loses or skips data.
