@@ -12,7 +12,7 @@
 |---|---|
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
-| **Phase** | v2.0 in progress — Airflow DAG and BigQuery sync shipped and live-verified; incremental load, MLflow tracking pending |
+| **Phase** | v2.0 in progress — Airflow DAG, BigQuery sync, and incremental load shipped and live-verified; MLflow tracking pending |
 | **Latest commit** | `8b4ca4a0` — `docs: document the incremental load feature (v2.0)` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
@@ -101,7 +101,7 @@
 | `tests/unit/test_feature_engineer.py` | Unit | 22 | `src/transform/feature_engineer.py` |
 | `tests/unit/test_validators.py` | Unit | 20 | `src/quality/validators.py` |
 | `tests/unit/test_bigquery_loader.py` | Unit | 17 | `src/load/bigquery_loader.py` (v2.0) |
-| `tests/unit/test_extractor.py` | Unit | 16 | `src/extract/extractor.py` |
+| `tests/unit/test_extractor.py` | Unit | 21 | `src/extract/extractor.py` (+v2.0 since/buffer_days filters) |
 | `tests/unit/test_path_utils.py` | Unit | 7 | `dags/path_utils.py` (v2.0) |
 | `tests/unit/test_pipeline_state.py` | Unit | 6 | `src/utils/pipeline_state.py` (v2.0) |
 | `tests/unit/test_loader.py` | Unit | 7 | `src/load/loader.py` incremental logic (v2.0) |
