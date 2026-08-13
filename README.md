@@ -162,6 +162,9 @@ sales-data-pipeline/
 │
 ├── reports/                        ← Generated profiling HTML reports (gitignored)
 │
+├── scripts/
+│   └── simulate_new_orders.py      ← v2.0: synthetic new-order generator (demo/testing only)
+│
 ├── tests/
 │   ├── conftest.py                 ← Shared pytest fixtures
 │   ├── unit/                       ← Fast, isolated unit tests (105 cases)
@@ -424,6 +427,48 @@ for the captured `bq query` / `bq show` evidence.
 
 ---
 
+## 🔄 Incremental Load *(v2.0)*
+
+Every pipeline run — local, Docker, CI, or Airflow — now processes only
+order rows that are new since the last successful run, instead of
+re-reading and re-validating the entire dataset every time. A watermark
+(the latest `Order Date` already processed) is stored in a `pipeline_state`
+table inside `database/superstore.duckdb`, and only advances after a full
+run succeeds — a failed run never loses or skips data.
+
+Gold aggregation tables and the Silver/Gold Parquet files always reflect
+the complete accumulated dataset, not just the newest batch — only the
+`fact_sales` write itself is incremental (insert-only, deduped on `Row ID`).
+
+```bash
+# Normal run — incremental after the first time
+python orchestration/pipeline.py
+
+# Force a full reload (schema change, corrupted state, clean demo reset)
+python orchestration/pipeline.py --full-refresh
+```
+
+### Demo: simulating new orders
+
+The source dataset is a static one-time Kaggle download, so there's no
+live feed of new orders to demonstrate incremental loading against. A
+small synthetic generator (`scripts/simulate_new_orders.py`, Faker-based)
+appends realistic, schema-valid new orders to `data/bronze/sales_data.csv`
+on demand — every generated row's `Customer ID`/`Order ID` carries a `SIM`
+prefix so it's never confusable with the real historical data.
+
+```bash
+make simulate-new-orders   # Appends 25 synthetic orders dated today
+python orchestration/pipeline.py   # Incremental run picks up just those 25
+```
+
+This is a manual, local-only demo tool — it is never run automatically in
+CI or the Airflow DAG (GitHub Actions runners are ephemeral, so real
+automation would need bot-committed state that wasn't judged worth the
+added complexity for a portfolio demo feature).
+
+---
+
 ## 🧪 Running Tests
 
 ```bash
@@ -562,7 +607,7 @@ ORDER  BY total_sales DESC;
 | **v1.0.0** | MVP — full medallion ETL, DuckDB, CI/CD, Docker, 90 tests | ✅ Released |
 | **v1.1.0** | Observability — Codecov, ydata-profiling HTML report, drift detection | ✅ Released |
 | **v1.2.2** | Query API — FastAPI layer + GHCR Docker publishing | ✅ Released |
-| **v2.0.0** | Data Infrastructure — Airflow DAG ✅, BigQuery store ✅ (live-verified) | 🔄 In Progress |
+| **v2.0.0** | Data Infrastructure — Airflow DAG ✅, BigQuery store ✅, Incremental load ✅ (live-verified) | 🔄 In Progress |
 | **v2.1.0** | Customer Segmentation — RFM, cohort analysis, K-Means | 📋 Backlog |
 | **v2.2.0** | Retention Analytics — churn classification, LTV correlation | 📋 Backlog |
 | **v2.3.0** | Analytics Dashboard — Tableau / Streamlit | 📋 Backlog |
@@ -584,7 +629,7 @@ flowchart TD
         D["🥇 Gold — Star schema · AOV · CLV pre-aggregated"]
     end
 
-    subgraph Infra["⚙️ Data Infrastructure  🔄  In Progress — Airflow ✅ · BigQuery ✅ · Incremental load 🔜"]
+    subgraph Infra["⚙️ Data Infrastructure  🔄  In Progress — Airflow ✅ · BigQuery ✅ · Incremental load ✅ · MLflow 🔜"]
         ORC["Apache Airflow ✅<br/>Self-hosted DAG · 9 tasks · Docker Compose"]
         WH["BigQuery ✅<br/>Partitioned · Clustered · Live-verified"]
     end

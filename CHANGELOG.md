@@ -23,6 +23,14 @@ This project uses [Semantic Versioning](https://semver.org/).
 - BigQuery cloud analytical store (v2.0): new `load_bigquery` Airflow DAG task syncs Gold-layer
   tables into a dedicated GCP project, `fact_sales` partitioned/clustered, full truncate-reload.
   Runs only from the self-hosted Airflow DAG, never CI.
+- Incremental load (v2.0): watermark-based delta detection on `Order Date`
+  (`src/utils/pipeline_state.py`), insert-only `fact_sales` writes deduped
+  on `Row ID`, gold aggregations always rebuilt from the full accumulated
+  dataset, `--full-refresh` CLI flag / `FULL_REFRESH` env var fallback.
+  Wired into both `orchestration/pipeline.py` and the Airflow DAG.
+- `scripts/simulate_new_orders.py` — manual-only, Faker-based synthetic
+  new-order generator (`make simulate-new-orders`) for demonstrating the
+  incremental load path; never run in CI.
 
 ### Fixed
 - `dags/sales_pipeline_dag.py` — DAG scratch-directory resolution now rejects a `run_id` that
