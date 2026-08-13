@@ -13,7 +13,7 @@
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
 | **Phase** | v2.0 in progress — Airflow DAG, BigQuery sync, and incremental load shipped and live-verified; MLflow tracking pending |
-| **Latest commit** | `8b4ca4a0` — `docs: document the incremental load feature (v2.0)` |
+| **Latest commit** | `eed5796e` — `docs: sync PROJECT-STATUS.md's Git History Snapshot to include recent commits` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -167,7 +167,7 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history, 73 commits total)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history, 84 commits total)*
 
 | Hash | Message |
 |---|---|
