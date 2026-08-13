@@ -167,7 +167,7 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history, 84 commits total)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history; 84 commits as of `eed5796e`)*
 
 | Hash | Message |
 |---|---|
