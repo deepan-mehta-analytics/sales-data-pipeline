@@ -21,6 +21,7 @@ import time  # Measures elapsed time for each pipeline stage
 from datetime import datetime, timezone  # Generates an ISO-8601 run timestamp
 from pathlib import Path  # Cross-platform path resolution
 
+import pandas as pd  # Reads the full accumulated silver Parquet for drift/profiling
 import yaml  # Reads config.yaml for quality-gate settings
 
 from src.extract.extractor import extract  # Bronze-layer CSV ingestion
@@ -275,6 +276,13 @@ def run(full_refresh: bool = False) -> dict:
     report["watermark"] = {"since": watermark, "new_watermark": load_meta.get("watermark_candidate")}
     report["stages"]["load"] = load_meta  # Attach loading metadata
 
+    # Re-read the FULL accumulated silver dataset that load() just wrote —
+    # on an incremental run enriched_df is only the new batch, but drift
+    # detection and profiling must always compare/profile the complete
+    # dataset (matching the reference snapshot built from a full run),
+    # never just the partial new-rows batch.
+    full_df = pd.read_parquet(load_meta["silver_path"])  # Full accumulated silver Parquet
+
     # -----------------------------------------------------------------------
     # Stage 7: Statistical drift detection (v1.1)
     # Compare key metrics from this run against the stored reference snapshot.
@@ -282,7 +290,7 @@ def run(full_refresh: bool = False) -> dict:
     # Never fails the pipeline — drift is surfaced as observability signal only.
     # -----------------------------------------------------------------------
     drift_threshold = config.get("pipeline", {}).get("drift_threshold", 0.05)  # Default 5 %
-    drift_report = _run_stage("drift_detection", detect_drift, enriched_df, drift_threshold)
+    drift_report = _run_stage("drift_detection", detect_drift, full_df, drift_threshold)
     report["drift"] = {  # Attach drift summary to the run report
         "is_first_run": drift_report.get("is_first_run", False),
         "findings_count": len(drift_report.get("drift_findings", [])),
@@ -291,14 +299,15 @@ def run(full_refresh: bool = False) -> dict:
 
     # -----------------------------------------------------------------------
     # Stage 8: Data profiling (v1.1)
-    # Generate an HTML profiling report for the enriched silver DataFrame.
-    # Requires requirements-profiling.txt (ydata-profiling); falls back to a
-    # lightweight pandas-describe HTML report if ydata-profiling is absent.
-    # Skipped entirely when generate_profile: false in config.yaml.
+    # Generate an HTML profiling report for the full accumulated silver
+    # DataFrame. Requires requirements-profiling.txt (ydata-profiling);
+    # falls back to a lightweight pandas-describe HTML report if
+    # ydata-profiling is absent. Skipped entirely when generate_profile:
+    # false in config.yaml.
     # -----------------------------------------------------------------------
     generate_profile_flag = config.get("pipeline", {}).get("generate_profile", True)
     if generate_profile_flag:  # Only run if profiling is enabled in config
-        profile_path = _run_stage("profiling", generate_profile, enriched_df)
+        profile_path = _run_stage("profiling", generate_profile, full_df)
         report["stages"]["profiling"] = {  # Attach profile path to the run report
             "report_path": str(profile_path) if profile_path else None,
         }

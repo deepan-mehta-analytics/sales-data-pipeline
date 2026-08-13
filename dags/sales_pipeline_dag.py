@@ -149,7 +149,10 @@ def sales_pipeline_dag():
         if load_meta.get("watermark_candidate"):  # Check if a watermark_candidate was produced
             set_watermark(DB_PATH, load_meta["watermark_candidate"], run_id=run_id or "unknown")  # Store it
 
-        return enriched_path  # Pass the path through so drift/profile tasks can still read it
+        # Return the FULL accumulated silver Parquet path (not enriched_path,
+        # which on an incremental run is only the new batch) so drift/profile
+        # tasks compare/profile the complete dataset, not just the new rows.
+        return load_meta["silver_path"]
 
     @task(retries=2, retry_delay=timedelta(minutes=2))
     def load_bigquery_task(loaded_path: str) -> None:
@@ -167,17 +170,17 @@ def sales_pipeline_dag():
         sync_to_bigquery(project_id=project_id, dataset_id=dataset_id)  # Reads Gold Parquet, loads into BigQuery
 
     @task
-    def drift_task(enriched_path: str) -> None:
-        """Run statistical drift detection. Observability only — never fails the DAG."""
-        enriched_df = pd.read_parquet(enriched_path)  # Reload the enriched DataFrame
-        detect_drift(enriched_df, threshold=DRIFT_THRESHOLD)  # Logs WARNINGs on drift beyond config's threshold
+    def drift_task(silver_path: str) -> None:
+        """Run drift detection against the full accumulated dataset. Observability only, never fails the DAG."""
+        full_df = pd.read_parquet(silver_path)  # Reload the FULL accumulated silver DataFrame
+        detect_drift(full_df, threshold=DRIFT_THRESHOLD)  # Logs WARNINGs on drift beyond config's threshold
 
     @task
-    def profile_task(enriched_path: str) -> None:
-        """Generate the HTML data-profiling report for the enriched DataFrame, unless disabled in config."""
-        enriched_df = pd.read_parquet(enriched_path)  # Reload the enriched DataFrame
+    def profile_task(silver_path: str) -> None:
+        """Generate the HTML data-profiling report for the full accumulated dataset, unless disabled in config."""
+        full_df = pd.read_parquet(silver_path)  # Reload the FULL accumulated silver DataFrame
         if GENERATE_PROFILE:  # Only run if profiling is enabled in config.yaml
-            generate_profile(enriched_df)  # Writes reports/profile_<timestamp>.html (unchanged from src/)
+            generate_profile(full_df)  # Writes reports/profile_<timestamp>.html (unchanged from src/)
         else:
             print("Profiling skipped (generate_profile: false in config.yaml)")  # Mirrors pipeline.py's skip log
 
