@@ -70,6 +70,10 @@ pipeline:
   # Any metric whose value changes by more than this fraction triggers a WARNING
   drift_threshold: 0.05
 
+  # Days to look backward from the stored watermark when re-checking for
+  # late-arriving rows during an incremental extract (0 = no re-check)
+  incremental_buffer_days: 3
+
 # ---------------------------------------------------------------------------
 # DuckDB analytical store settings
 # ---------------------------------------------------------------------------

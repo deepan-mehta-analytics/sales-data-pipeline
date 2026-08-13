@@ -15,6 +15,7 @@
 # Run via Make:    make run
 # =============================================================================
 
+import os  # Reads the FULL_REFRESH env var for the __main__ entry point
 import sys  # Used to exit with a non-zero code on failure
 import time  # Measures elapsed time for each pipeline stage
 from datetime import datetime, timezone  # Generates an ISO-8601 run timestamp
@@ -30,6 +31,7 @@ from src.quality.validators import run_quality_checks  # Data quality validation
 from src.transform.cleaner import clean  # Silver-layer data cleaning
 from src.transform.feature_engineer import engineer  # Feature engineering
 from src.utils.logger import get_logger  # Centralised JSON logger
+from src.utils.pipeline_state import get_watermark, set_watermark  # Incremental-load watermark storage
 
 # ---------------------------------------------------------------------------
 # Add the project root to sys.path so that 'from src...' imports work when
@@ -111,7 +113,7 @@ def _run_stage(stage_name: str, func, *args, **kwargs):
 # =============================================================================
 
 
-def run() -> dict:
+def run(full_refresh: bool = False) -> dict:
     """
     Execute the full end-to-end pipeline and return a structured run report.
 
@@ -123,6 +125,14 @@ def run() -> dict:
     4. Quality (clean)  – Re-validate after cleaning; run date-order checks.
     5. Engineer         – Add derived features (margins, shipping days, etc.).
     6. Load             – Write Parquet files and populate DuckDB.
+
+    Parameters
+    ----------
+    full_refresh : bool, optional
+        When True, ignores any stored watermark and reloads the entire
+        bronze CSV, replacing fact_sales instead of inserting into it —
+        reproduces the pipeline's pre-incremental-load behavior exactly.
+        Defaults to False (incremental).
 
     Returns
     -------
@@ -142,6 +152,11 @@ def run() -> dict:
 
     # Determine whether a failing quality check should abort the pipeline.
     fail_on_quality_error = config.get("pipeline", {}).get("fail_on_quality_error", True)
+
+    # Resolve the DuckDB path and this run's incremental settings.
+    db_path = PROJECT_ROOT / config["paths"]["database"]
+    buffer_days = config.get("pipeline", {}).get("incremental_buffer_days", 3)
+    watermark = None if full_refresh else get_watermark(db_path)
 
     logger.info(  # Log the pipeline start event with version and timestamp
         "Pipeline run started",
@@ -164,7 +179,7 @@ def run() -> dict:
     # Stage 1: Extract
     # Load the raw CSV into a DataFrame and capture ingestion metadata.
     # -----------------------------------------------------------------------
-    raw_df, extract_meta = _run_stage("extract", extract)
+    raw_df, extract_meta = _run_stage("extract", extract, since=watermark, buffer_days=buffer_days)
     report["stages"]["extract"] = extract_meta  # Attach extraction metadata to the report
 
     # -----------------------------------------------------------------------
@@ -251,7 +266,13 @@ def run() -> dict:
     # Stage 6: Load
     # Write Parquet files (silver + gold) and populate the DuckDB database.
     # -----------------------------------------------------------------------
-    load_meta = _run_stage("load", load, enriched_df)
+    load_meta = _run_stage("load", load, enriched_df, full_refresh=full_refresh)
+
+    # Advance the stored watermark only now that load() has returned
+    # without raising — a failed run must never advance the watermark.
+    if load_meta.get("watermark_candidate"):
+        set_watermark(db_path, load_meta["watermark_candidate"], run_id=run_ts)
+    report["watermark"] = {"since": watermark, "new_watermark": load_meta.get("watermark_candidate")}
     report["stages"]["load"] = load_meta  # Attach loading metadata
 
     # -----------------------------------------------------------------------
@@ -310,4 +331,5 @@ def run() -> dict:
 # =============================================================================
 
 if __name__ == "__main__":
-    run()  # Execute the pipeline when this script is run directly
+    _full_refresh = "--full-refresh" in sys.argv or os.environ.get("FULL_REFRESH", "").lower() == "true"
+    run(full_refresh=_full_refresh)  # Execute the pipeline when this script is run directly

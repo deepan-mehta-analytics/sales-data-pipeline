@@ -44,8 +44,12 @@ class TestFullPipelineRun:
         """
         from orchestration.pipeline import run  # Import the pipeline orchestrator
 
-        # Execute the full pipeline against the sample data.
-        report = run()
+        # full_refresh=True keeps this test deterministic regardless of any
+        # watermark state left over in database/superstore.duckdb from a
+        # previous local `make run` — this test verifies a full pipeline
+        # run still works end-to-end, not the incremental behavior (that's
+        # covered separately in tests/integration/test_incremental_load.py).
+        report = run(full_refresh=True)
 
         # Attach the report to the class so individual test methods can inspect it.
         TestFullPipelineRun.report = report
