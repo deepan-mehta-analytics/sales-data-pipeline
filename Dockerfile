@@ -216,4 +216,15 @@ EXPOSE 5000
 # — see docker-compose.yml's MLFLOW_TRACKING_URI: http://mlflow:5000. Passing
 # --allowed-hosts replaces mlflow's own defaults rather than extending them,
 # so localhost/127.0.0.1 must be listed explicitly alongside mlflow.
-CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////app/mlflow/mlflow.db", "--default-artifact-root", "/app/mlflow/artifacts", "--allowed-hosts", "localhost:*,127.0.0.1:*,mlflow:*"]
+# --artifacts-destination (not --default-artifact-root) is required so the
+# Default experiment's artifact_location uses mlflow's proxy scheme
+# (mlflow-artifacts:/) instead of a bare local filesystem path. Per mlflow's
+# own `mlflow server --help`, --default-artifact-root deterministically
+# overrides the proxy default regardless of --serve-artifacts being enabled
+# (on by default) — that broke every remote client's mlflow.log_artifact()
+# call (e.g. the Airflow container, which has no access to this container's
+# own filesystem) because it tried to write directly to a local path that
+# only exists inside this container. --artifacts-destination keeps artifacts
+# stored at the same local path here while routing all remote reads/writes
+# through the HTTP proxy instead of requiring direct filesystem access.
+CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////app/mlflow/mlflow.db", "--artifacts-destination", "/app/mlflow/artifacts", "--allowed-hosts", "localhost:*,127.0.0.1:*,mlflow:*"]

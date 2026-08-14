@@ -165,3 +165,23 @@ class TestEndRun:
             mock_client_cls.return_value.set_terminated.side_effect = ConnectionError("unreachable")
 
             end_run("run-1", status="success")  # Must not raise
+
+    def test_skips_set_terminated_when_run_already_finished(self):
+        with patch.object(mlflow_tracker, "MlflowClient") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client_cls.return_value = mock_client
+            mock_client.get_run.return_value.info.status = "FINISHED"  # Already terminal
+
+            end_run("run-1", status="failed")  # A later caller trying to mark it failed
+
+            mock_client.set_terminated.assert_not_called()  # Must not downgrade an already-terminal run
+
+    def test_calls_set_terminated_when_run_still_running(self):
+        with patch.object(mlflow_tracker, "MlflowClient") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client_cls.return_value = mock_client
+            mock_client.get_run.return_value.info.status = "RUNNING"  # Not yet terminal
+
+            end_run("run-1", status="success")
+
+            mock_client.set_terminated.assert_called_once_with("run-1", status="FINISHED")

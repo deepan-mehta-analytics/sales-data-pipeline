@@ -125,6 +125,20 @@ def end_run(run_id: Optional[str], status: str) -> None:
     """
     Close out an MLflow run with a terminal status. No-op if run_id is None.
 
+    Before terminating, checks the run's current MLflow status and skips the
+    set_terminated() call (logging at INFO, not WARNING — an expected no-op,
+    not a failure) if the run is already in a terminal state (FINISHED,
+    FAILED, or KILLED). This protects every caller from accidentally
+    downgrading an already-successful run: e.g. in the Airflow DAG, sibling
+    tasks can close the same tracked run more than once (a healthy task
+    closing it as "success", followed later by a different, unrelated
+    task's on_failure_callback closing it again as "failed") — without this
+    guard, the later call would silently overwrite a FINISHED run to FAILED
+    even though the tracked pipeline actually succeeded. Both existing
+    callers (orchestration/pipeline.py's `finally` block, which calls this
+    exactly once per run, and the DAG's on_failure_callback, where the race
+    actually occurs) share this same defensive check.
+
     Parameters
     ----------
     run_id : str, optional  The run ID returned by start_run(). None disables this call.
@@ -135,7 +149,16 @@ def end_run(run_id: Optional[str], status: str) -> None:
         return
 
     try:
+        client = MlflowClient()  # Reused for both the status check and the terminate call
+        current_status = client.get_run(run_id).info.status  # Current MLflow lifecycle status
+        if current_status in ("FINISHED", "FAILED", "KILLED"):  # Already terminal — do not downgrade it
+            logger.info(
+                "MLflow end_run skipped; run %s already terminal (%s)",
+                run_id,
+                current_status,
+            )
+            return
         mlflow_status = "FINISHED" if status == "success" else "FAILED"  # Map to MLflow's vocabulary
-        MlflowClient().set_terminated(run_id, status=mlflow_status)
+        client.set_terminated(run_id, status=mlflow_status)
     except Exception:
         logger.warning("MLflow end_run failed", exc_info=True)
