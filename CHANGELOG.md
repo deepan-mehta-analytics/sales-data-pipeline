@@ -31,6 +31,12 @@ This project uses [Semantic Versioning](https://semver.org/).
 - `scripts/simulate_new_orders.py` — manual-only, Faker-based synthetic
   new-order generator (`make simulate-new-orders`) for demonstrating the
   incremental load path; never run in CI.
+- MLflow run tracking (v2.0): self-hosted tracking server (`docker-compose.yml`'s
+  new `mlflow` service, SQLite backend store) records per-run parameters,
+  per-stage timings, row counts, and quality-check results
+  (`src/utils/mlflow_tracker.py`), wired into both `orchestration/pipeline.py`
+  and the Airflow DAG. Never fails the pipeline if the tracking server is
+  unavailable — falls back to MLflow's own local `./mlruns` store.
 
 ### Fixed
 - `dags/sales_pipeline_dag.py` — DAG scratch-directory resolution now rejects a `run_id` that

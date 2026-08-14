@@ -12,8 +12,8 @@
 |---|---|
 | **Version** | 1.2.2 |
 | **GitHub Release** | [v1.2.2 — CI Coverage Fix](https://github.com/deepan-mehta-analytics/sales-data-pipeline/releases/tag/v1.2.2) |
-| **Phase** | v2.0 in progress — Airflow DAG, BigQuery sync, and incremental load shipped and live-verified; MLflow tracking pending |
-| **Latest commit** | `887fac4e` — `fix(logging): merge extra={...} fields into the JSON log payload` |
+| **Phase** | v2.0 complete — Airflow DAG, BigQuery sync, incremental load, and MLflow run tracking all shipped and live-verified |
+| **Latest commit** | `3705ebb2` — `fix(mlflow): route artifacts through the proxy destination; never downgrade a terminal run's status` |
 | **Branch** | `main` |
 | **CI** | GitHub Actions — Lint + Test + Coverage on every push |
 | **Scheduled pipeline** | Daily via `.github/workflows/pipeline.yml` |
@@ -106,10 +106,11 @@
 | `tests/unit/test_pipeline_state.py` | Unit | 6 | `src/utils/pipeline_state.py` (v2.0) |
 | `tests/unit/test_loader.py` | Unit | 7 | `src/load/loader.py` incremental logic (v2.0) |
 | `tests/unit/test_simulate_new_orders.py` | Unit | 9 | `scripts/simulate_new_orders.py` (v2.0) |
+| `tests/unit/test_mlflow_tracker.py` | Unit | 16 | `src/utils/mlflow_tracker.py` (v2.0) |
 | `tests/integration/test_pipeline.py` | Integration | 12 | Full end-to-end pipeline |
 | `tests/integration/test_api.py` | Integration | 15 | FastAPI query layer smoke tests |
 | `tests/integration/test_incremental_load.py` | Integration | 1 | End-to-end incremental load scenario |
-| **Total** | | **160** | |
+| **Total** | | **180** | |
 
 **Coverage threshold:** 70% minimum (enforced in `pyproject.toml`)
 
@@ -154,6 +155,7 @@
 | CI/CD | GitHub Actions | — |
 | Containers | Docker + Compose | — |
 | Orchestration | Apache Airflow (self-hosted, LocalExecutor) | 3.3.0 |
+| Run tracking | MLflow (self-hosted) | Per-run params/metrics/artifacts, SQLite backend store |
 | Cloud warehouse | Google BigQuery | Partitioned/clustered analytical store, synced from the Airflow DAG only |
 
 ---
@@ -167,11 +169,11 @@
 
 ---
 
-## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-13 — see `git log` for full history; 92 commits as of `887fac4e`)*
+## 📝 Git History Snapshot *(most recent milestones, updated 2026-08-14 — see `git log` for full history; 99 commits as of `3705ebb2`)*
 
 | Hash | Message |
 |---|---|
-| `887fac4e` | fix(logging): merge extra={...} fields into the JSON log payload |
+| `3705ebb2` | fix(mlflow): route artifacts through the proxy destination; never downgrade a terminal run's status |
 | `3ee4d02e` | fix(pipeline): run drift detection and profiling on the full accumulated dataset |
 | `ccce1693` | test(incremental): back up and restore every file the pipeline mutates |
 | `f0e4035b` | fix(docs): correct test counts and phase status for incremental load completion |
@@ -255,14 +257,14 @@ Exposes the DuckDB gold tables as a typed REST API and publishes versioned Docke
 > for drift, diff this repo's README.md diagram against the profile README's *only if* the profile
 > page is currently featuring this project.
 
-### 🔄 v2.0 — Data Infrastructure *(In Progress)*
+### ✅ v2.0 — Data Infrastructure *(Complete)*
 
 | Item | Description | Status |
 |---|---|---|
 | Cloud orchestration | Airflow DAG (`dags/sales_pipeline_dag.py`) wrapping all 8 pipeline stages plus the BigQuery sync — 9 tasks, self-hosted via Docker Compose | ✅ Done |
 | Cloud analytical store | BigQuery (`sales-data-pipeline-dm` project) — `fact_sales` partitioned/clustered + 5 `agg_*` tables, synced from the Airflow DAG's `load_bigquery` task | ✅ Done |
 | Incremental load | Watermark-based delta detection on Order Date, insert-only fact_sales, `--full-refresh` fallback | ✅ Done |
-| Experiment / run tracking | MLflow or W&B run tracking for pipeline executions and data quality metrics | 🔜 Backlog |
+| Run tracking | Self-hosted MLflow (SQLite backend) — per-run params/metrics/artifacts, wired into both `orchestration/pipeline.py` and the Airflow DAG | ✅ Done |
 
 ### 🔜 v2.1 — Customer Segmentation *(Backlog — scikit-learn, Databricks)*
 

@@ -44,6 +44,7 @@ It implements:
 - **REST query API** *(v1.2)* — FastAPI layer exposing all five DuckDB gold tables with typed Pydantic responses
 - **GHCR Docker publishing** *(v1.2)* — Pipeline and API images published to GitHub Container Registry on every version tag
 - **Self-hosted Airflow orchestration** *(v2.0)* — DAG wrapping all 8 pipeline stages plus the BigQuery sync (9 Airflow tasks total) as independently retryable, independently observable tasks, alongside the existing scheduled CI run
+- **MLflow run tracking** *(v2.0)* — self-hosted tracking server records per-run parameters, stage timings, row counts, and quality-check results across every execution, queryable in a browser-based UI
 
 ---
 
@@ -63,6 +64,7 @@ It implements:
 | API Validation | Pydantic v2 | Typed response schemas for all endpoints |
 | Container Registry | GitHub Container Registry | Versioned Docker image publishing on release tags (v1.2) |
 | Orchestration | Apache Airflow 3.x (self-hosted) | DAG orchestration of all 8 pipeline stages + BigQuery sync — 9 tasks, LocalExecutor (v2.0) |
+| Run Tracking | MLflow (self-hosted, SQLite backend) | Per-run params/metrics/artifacts across pipeline executions (v2.0) |
 | Code Quality | black + isort + flake8 | Formatting, import sorting, and linting |
 | CI/CD | GitHub Actions | Automated test and pipeline execution |
 | Containers | Docker + Compose | Reproducible execution environment |
@@ -159,7 +161,8 @@ sales-data-pipeline/
 │   │   └── drift_detector.py     ← v1.1: Statistical drift detection vs prior run
 │   └── utils/
 │       ├── logger.py               ← Centralised JSON-structured logger
-│       └── pipeline_state.py       ← v2.0: watermark storage for incremental load
+│       ├── pipeline_state.py       ← v2.0: watermark storage for incremental load
+│       └── mlflow_tracker.py       ← v2.0: MLflow run-tracking wrapper (never fails the pipeline)
 │
 ├── reports/                        ← Generated profiling HTML reports (gitignored)
 │
@@ -179,6 +182,7 @@ sales-data-pipeline/
 ├── requirements.txt                ← Production dependencies
 ├── requirements-dev.txt            ← Testing + linting dependencies
 ├── requirements-gcp.txt            ← v2.0: BigQuery client dependencies
+├── requirements-mlflow.txt         ← v2.0: MLflow client dependencies
 └── requirements-profiling.txt      ← v1.1: Optional ydata-profiling dependency
 ```
 
@@ -428,6 +432,80 @@ for the captured `bq query` / `bq show` evidence.
 
 ---
 
+## 📈 MLflow Run Tracking *(v2.0)*
+
+Every pipeline run — local, Docker, CI, or Airflow — logs its parameters,
+per-stage timings, row counts, and quality-check results to a self-hosted
+MLflow tracking server, so historical trends (has the quality-pass rate
+degraded? how has stage timing changed?) are queryable across runs instead
+of scattered across individual log files.
+
+```bash
+# Start the tracking server (SQLite backend, local artifact volume)
+make mlflow-up
+
+# Point local runs at it (optional — without this, MLflow falls back to a
+# local ./mlruns folder automatically; the pipeline never fails either way)
+export MLFLOW_TRACKING_URI=http://localhost:5001   # Windows: set MLFLOW_TRACKING_URI=...
+
+python orchestration/pipeline.py
+```
+
+Open **http://localhost:5001** to browse runs, compare metrics, and inspect
+attached artifacts (the log file, the profiling HTML report). Docker Compose
+and the Airflow DAG both reach the server automatically via its Compose
+network hostname (`http://mlflow:5000`) — no manual configuration needed for
+those paths.
+
+Stop the server with `make mlflow-down` — the pipeline/API/Airflow services
+are unaffected, and pipeline runs continue to work normally (falling back to
+the local `./mlruns` folder) whether or not the server is running.
+
+---
+
+## 🔄 Incremental Load *(v2.0)*
+
+Every pipeline run — local, Docker, CI, or Airflow — now runs quality
+checks, cleaning, and feature engineering only on order rows that are new
+since the last successful run, instead of re-validating and re-transforming
+the entire dataset every time. A watermark
+(the latest `Order Date` already processed) is stored in a `pipeline_state`
+table inside `database/superstore.duckdb`, and only advances after a full
+run succeeds — a failed run never loses or skips data.
+
+Gold aggregation tables and the Silver/Gold Parquet files always reflect
+the complete accumulated dataset, not just the newest batch — only the
+`fact_sales` write itself is incremental (insert-only, deduped on `Row ID`).
+
+```bash
+# Normal run — incremental after the first time
+python orchestration/pipeline.py
+
+# Force a full reload (schema change, corrupted state, clean demo reset)
+python orchestration/pipeline.py --full-refresh
+```
+
+### Demo: simulating new orders
+
+The source dataset is a static one-time Kaggle download, so there's no
+live feed of new orders to demonstrate incremental loading against. A
+small synthetic generator (`scripts/simulate_new_orders.py`, Faker-based)
+appends realistic, schema-valid new orders to `data/bronze/sales_data.csv`
+on demand — every generated row's `Customer ID`/`Order ID` carries a `SIM`
+prefix so it's never confusable with the real historical data.
+
+```bash
+make simulate-new-orders   # Appends 25 synthetic orders dated today
+python orchestration/pipeline.py   # Incremental run picks up just those 25
+```
+
+This is a manual, local-only demo tool — it is never run automatically in
+CI or the Airflow DAG (GitHub Actions runners are ephemeral, so real
+automation would need bot-committed state that wasn't judged worth the
+added complexity for a portfolio demo feature).
+
+---
+
 ## 🔄 Incremental Load *(v2.0)*
 
 Every pipeline run — local, Docker, CI, or Airflow — now runs quality
@@ -609,7 +687,7 @@ ORDER  BY total_sales DESC;
 | **v1.0.0** | MVP — full medallion ETL, DuckDB, CI/CD, Docker, 90 tests | ✅ Released |
 | **v1.1.0** | Observability — Codecov, ydata-profiling HTML report, drift detection | ✅ Released |
 | **v1.2.2** | Query API — FastAPI layer + GHCR Docker publishing | ✅ Released |
-| **v2.0.0** | Data Infrastructure — Airflow DAG ✅, BigQuery store ✅, Incremental load ✅ (live-verified) | 🔄 In Progress |
+| **v2.0.0** | Data Infrastructure — Airflow DAG ✅, BigQuery store ✅, Incremental load ✅, MLflow tracking ✅ | ✅ Complete |
 | **v2.1.0** | Customer Segmentation — RFM, cohort analysis, K-Means | 📋 Backlog |
 | **v2.2.0** | Retention Analytics — churn classification, LTV correlation | 📋 Backlog |
 | **v2.3.0** | Analytics Dashboard — Tableau / Streamlit | 📋 Backlog |
@@ -631,7 +709,7 @@ flowchart TD
         D["🥇 Gold — Star schema · AOV · CLV pre-aggregated"]
     end
 
-    subgraph Infra["⚙️ Data Infrastructure  🔄  In Progress — Airflow ✅ · BigQuery ✅ · Incremental load ✅ · MLflow 🔜"]
+    subgraph Infra["⚙️ Data Infrastructure  ✅  Built — Airflow ✅ · BigQuery ✅ · Incremental load ✅ · MLflow ✅"]
         ORC["Apache Airflow ✅<br/>Self-hosted DAG · 9 tasks · Docker Compose"]
         WH["BigQuery ✅<br/>Partitioned · Clustered · Live-verified"]
     end
