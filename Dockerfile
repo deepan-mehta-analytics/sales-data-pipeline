@@ -167,15 +167,18 @@ FROM apache/airflow:3.3.0-python3.11 AS airflow-runtime
 USER airflow
 
 # Copy only the dependency manifests so Docker layer caching skips the
-# install step unless either file actually changes.
-COPY requirements.txt requirements-gcp.txt /tmp/
+# install step unless any of these files actually change.
+COPY requirements.txt requirements-gcp.txt requirements-mlflow.txt /tmp/
 
 # Install this repo's runtime deps against Airflow's own constraints file so
 # pip's resolver cannot silently break Airflow's pinned dependency graph —
 # this is the pattern Apache's own docs recommend for extending the image.
-# requirements-gcp.txt (google-cloud-bigquery) is installed here only — the
-# pipeline and api Docker stages never see it, keeping those images lean.
-RUN pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-gcp.txt \
+# requirements-gcp.txt (google-cloud-bigquery) and requirements-mlflow.txt
+# (mlflow client, needed because dags/sales_pipeline_dag.py imports
+# src/utils/mlflow_tracker.py, which imports mlflow at module load time) are
+# installed here only — the pipeline and api Docker stages never see them,
+# keeping those images lean.
+RUN pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-gcp.txt -r /tmp/requirements-mlflow.txt \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.11.txt"
 
 
@@ -205,4 +208,12 @@ RUN mkdir -p /app/mlflow/artifacts
 EXPOSE 5000
 
 # Start the MLflow tracking server: SQLite backend store, local artifact root.
-CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////app/mlflow/mlflow.db", "--default-artifact-root", "/app/mlflow/artifacts"]
+# --allowed-hosts is required (mlflow's built-in DNS-rebinding protection
+# defaults to localhost-only Host headers) because callers reach this server
+# two ways: from the host machine via the mapped port (Host: localhost:5001,
+# covered by the localhost:* pattern) and from other Compose services via the
+# Docker network hostname (Host: mlflow:5000, covered by the mlflow:* pattern)
+# — see docker-compose.yml's MLFLOW_TRACKING_URI: http://mlflow:5000. Passing
+# --allowed-hosts replaces mlflow's own defaults rather than extending them,
+# so localhost/127.0.0.1 must be listed explicitly alongside mlflow.
+CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////app/mlflow/mlflow.db", "--default-artifact-root", "/app/mlflow/artifacts", "--allowed-hosts", "localhost:*,127.0.0.1:*,mlflow:*"]

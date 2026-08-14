@@ -9,7 +9,8 @@
 # without changing any of the underlying stage logic in src/. Intermediate
 # DataFrames are handed off between tasks as Parquet files on a shared
 # volume (not XCom) — Airflow's metadata-DB-backed XCom is not meant to
-# carry multi-megabyte DataFrames.
+# carry multi-megabyte DataFrames. The MLflow run ID (v2.0) IS threaded via
+# a small, named XCom key (`mlflow_run_id`) — a short string, not a DataFrame.
 #
 # Trigger manually:  airflow dags trigger sales_pipeline_dag
 # Or from the UI:    http://localhost:8080/dags/sales_pipeline_dag
@@ -33,6 +34,7 @@ from src.quality.profiler import generate_profile  # HTML data-profiling report 
 from src.quality.validators import run_quality_checks  # Data quality validation
 from src.transform.cleaner import clean  # Silver-layer cleaning
 from src.transform.feature_engineer import engineer  # Feature engineering
+from src.utils.mlflow_tracker import end_run, log_run_data, start_run  # v2.0: MLflow run tracking
 from src.utils.pipeline_state import get_watermark, set_watermark  # Incremental-load watermark storage
 
 # Project root as mounted inside the Airflow containers (see docker-compose.yml x-airflow-common).
@@ -74,6 +76,32 @@ def _tmp_dir(run_id: str) -> Path:
     return run_dir  # Hand back the resolved path
 
 
+def _mlflow_run_id_from_xcom(ti) -> str:
+    """
+    Pull the MLflow run ID pushed by extract_task, via ti.xcom_pull's own
+    named-key lookup — works regardless of which task calls this, as long as
+    extract_task itself completed (if extract_task fails before pushing,
+    this correctly returns None, and downstream mlflow_tracker calls no-op).
+    """
+    if ti is None:  # Defensive: Airflow always injects ti when it's a declared param, but guard anyway
+        return None
+    return ti.xcom_pull(task_ids="extract_task", key="mlflow_run_id")
+
+
+def _on_dag_failure_close_mlflow_run(context: dict) -> None:
+    """
+    DAG-level failure callback (v2.0). The DAG's tasks form a linear
+    dependency chain, so if any task upstream of profile_task fails, the DAG
+    stops before profile_task ever runs — meaning end_run() would otherwise
+    never fire and the MLflow run would sit stuck in RUNNING state
+    indefinitely. This callback runs on ANY task failure and closes the run
+    out as "failed", independent of which task actually failed.
+    """
+    ti = context.get("ti")
+    mlflow_run_id = _mlflow_run_id_from_xcom(ti)
+    end_run(mlflow_run_id, status="failed")
+
+
 @dag(
     dag_id="sales_pipeline_dag",  # Unique DAG identifier shown in the UI
     description="Superstore Sales ETL pipeline — Airflow orchestration of the existing src/ stages",
@@ -83,25 +111,54 @@ def _tmp_dir(run_id: str) -> Path:
     max_active_runs=1,  # Single writer: load_task shares data/silver, data/gold, database/superstore.duckdb
     tags=["sales-pipeline", "etl", "portfolio"],  # UI filter tags
     params={"full_refresh": False},  # Trigger with --conf '{"full_refresh": true}' to force a full reload
+    on_failure_callback=_on_dag_failure_close_mlflow_run,  # v2.0: always close out the MLflow run on any task failure
 )
 def sales_pipeline_dag():
     """Superstore Sales ETL pipeline, orchestrated stage-by-stage via Airflow."""
 
     @task
-    def extract_task(run_id: str = None, params: dict = None) -> str:
-        """Run the extract stage; persist the raw DataFrame for the next task."""
+    def extract_task(run_id: str = None, params: dict = None, ti=None) -> str:
+        """Run the extract stage; persist the raw DataFrame for the next task; start the MLflow run."""
         full_refresh = bool((params or {}).get("full_refresh", False))  # Extract full_refresh flag from DAG params
         watermark = None if full_refresh else get_watermark(DB_PATH)  # Get stored watermark unless doing full reload
         raw_df, metadata = extract(since=watermark, buffer_days=INCREMENTAL_BUFFER_DAYS)  # Bronze-layer CSV ingestion
         out_path = _tmp_dir(run_id) / "raw.parquet"  # This task's hand-off file
         raw_df.to_parquet(out_path, index=False)  # Persist for quality_raw_task to read
+
+        # v2.0: start the MLflow run for this DAG execution, push its ID as a
+        # named XCom so every later task in this run can resume logging into it.
+        mlflow_run_id = start_run(
+            tags={"environment": "airflow", "project_version": _CONFIG["project"]["version"]},
+            run_name=run_id,
+        )
+        if ti is not None:
+            ti.xcom_push(key="mlflow_run_id", value=mlflow_run_id)
+        log_run_data(
+            mlflow_run_id,
+            params={
+                "run_mode": "full_refresh" if full_refresh else "incremental",
+                "watermark_used": watermark,
+            },
+            metrics={"raw_row_count": metadata["row_count"]},
+        )
+
         return str(out_path)  # Hand the path (not the DataFrame) forward via XCom
 
     @task
-    def quality_raw_task(raw_path: str) -> str:
+    def quality_raw_task(raw_path: str, ti=None) -> str:
         """Run raw-data quality checks; fail this task if the quality gate fails."""
         raw_df = pd.read_parquet(raw_path)  # Reload the raw DataFrame from the prior task
         report = run_quality_checks(raw_df, run_date_checks=False)  # Dates are still strings at this stage
+
+        mlflow_run_id = _mlflow_run_id_from_xcom(ti)  # v2.0: resume the run started by extract_task
+        log_run_data(
+            mlflow_run_id,
+            metrics={
+                "quality_raw_passed": report.total_checks - report.failed_checks,
+                "quality_raw_total": report.total_checks,
+            },
+        )
+
         if not report.overall_passed and FAIL_ON_QUALITY_ERROR:  # Same gate as pipeline.py: only raise when enabled
             raise AirflowException(
                 f"Raw-data quality gate failed: {report.failed_checks} of {report.total_checks} checks failed"
@@ -109,19 +166,33 @@ def sales_pipeline_dag():
         return raw_path  # Pass the same path through unchanged
 
     @task
-    def clean_task(raw_path: str, run_id: str = None) -> str:
+    def clean_task(raw_path: str, run_id: str = None, ti=None) -> str:
         """Run the clean stage; persist the cleaned DataFrame."""
         raw_df = pd.read_parquet(raw_path)  # Reload the raw DataFrame
         cleaned_df, metadata = clean(raw_df)  # Silver-layer cleaning (unchanged from src/)
         out_path = _tmp_dir(run_id) / "cleaned.parquet"  # This task's hand-off file
         cleaned_df.to_parquet(out_path, index=False)  # Persist for quality_cleaned_task to read
+
+        mlflow_run_id = _mlflow_run_id_from_xcom(ti)  # v2.0: resume the run started by extract_task
+        log_run_data(mlflow_run_id, metrics={"cleaned_row_count": metadata["rows_output"]})
+
         return str(out_path)  # Hand the path forward
 
     @task
-    def quality_cleaned_task(cleaned_path: str) -> str:
+    def quality_cleaned_task(cleaned_path: str, ti=None) -> str:
         """Run cleaned-data quality checks, including temporal (ship-after-order) validation."""
         cleaned_df = pd.read_parquet(cleaned_path)  # Reload the cleaned DataFrame
         report = run_quality_checks(cleaned_df, run_date_checks=True)  # Dates are now datetime-typed
+
+        mlflow_run_id = _mlflow_run_id_from_xcom(ti)  # v2.0: resume the run started by extract_task
+        log_run_data(
+            mlflow_run_id,
+            metrics={
+                "quality_cleaned_passed": report.total_checks - report.failed_checks,
+                "quality_cleaned_total": report.total_checks,
+            },
+        )
+
         if not report.overall_passed and FAIL_ON_QUALITY_ERROR:  # Same gate as pipeline.py: only raise when enabled
             raise AirflowException(
                 f"Cleaned-data quality gate failed: {report.failed_checks} of {report.total_checks} checks failed"
@@ -160,7 +231,8 @@ def sales_pipeline_dag():
         Sync the Gold Parquet files just written by load_task into BigQuery
         (v2.0 cloud analytical store, alongside the local DuckDB store).
         Runs only here — never from orchestration/pipeline.py or the GitHub
-        Actions daily cron, so no GCP credential is needed in CI.
+        Actions daily cron, so no GCP credential is needed in CI. Orthogonal
+        to MLflow run tracking — not instrumented.
         """
         # Set (possibly to "") by docker-compose's ${GCP_PROJECT_ID:-} default; sync_to_bigquery
         # is what actually validates a non-empty value — this KeyError only guards a caller
@@ -170,19 +242,37 @@ def sales_pipeline_dag():
         sync_to_bigquery(project_id=project_id, dataset_id=dataset_id)  # Reads Gold Parquet, loads into BigQuery
 
     @task
-    def drift_task(silver_path: str) -> None:
+    def drift_task(silver_path: str, ti=None) -> None:
         """Run drift detection against the full accumulated dataset. Observability only, never fails the DAG."""
         full_df = pd.read_parquet(silver_path)  # Reload the FULL accumulated silver DataFrame
-        detect_drift(full_df, threshold=DRIFT_THRESHOLD)  # Logs WARNINGs on drift beyond config's threshold
+        drift_report = detect_drift(
+            full_df, threshold=DRIFT_THRESHOLD
+        )  # Logs WARNINGs on drift beyond config's threshold
+
+        mlflow_run_id = _mlflow_run_id_from_xcom(ti)  # v2.0: resume the run started by extract_task
+        log_run_data(
+            mlflow_run_id,
+            metrics={"drift_findings_count": len(drift_report.get("drift_findings", []))},
+        )
 
     @task
-    def profile_task(silver_path: str) -> None:
-        """Generate the HTML data-profiling report for the full accumulated dataset, unless disabled in config."""
+    def profile_task(silver_path: str, ti=None) -> None:
+        """
+        Generate the HTML data-profiling report for the full accumulated dataset,
+        unless disabled in config. Final task in the DAG's happy path — closes
+        out the MLflow run as successful, since reaching this task means every
+        upstream task already succeeded.
+        """
         full_df = pd.read_parquet(silver_path)  # Reload the FULL accumulated silver DataFrame
+        profile_path = None
         if GENERATE_PROFILE:  # Only run if profiling is enabled in config.yaml
-            generate_profile(full_df)  # Writes reports/profile_<timestamp>.html (unchanged from src/)
+            profile_path = generate_profile(full_df)  # Writes reports/profile_<timestamp>.html (unchanged from src/)
         else:
             print("Profiling skipped (generate_profile: false in config.yaml)")  # Mirrors pipeline.py's skip log
+
+        mlflow_run_id = _mlflow_run_id_from_xcom(ti)  # v2.0: resume the run started by extract_task
+        log_run_data(mlflow_run_id, artifact_paths=[profile_path] if profile_path else None)
+        end_run(mlflow_run_id, status="success")  # All upstream tasks succeeded — close the run out cleanly
 
     # -------------------------------------------------------------------
     # Wire the linear dependency chain — mirrors orchestration/pipeline.py's
