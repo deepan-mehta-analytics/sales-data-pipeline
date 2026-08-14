@@ -180,3 +180,38 @@ class TestFullPipelineRun:
         assert len(df) >= 1, "sales_by_region must contain at least one region row"
         assert "Region" in df.columns, "sales_by_region must have a Region column"
         assert "total_sales" in df.columns, "sales_by_region must have a total_sales column"
+
+
+class TestMLflowRunTracking:
+    """
+    Verifies the pipeline's MLflow instrumentation end-to-end against
+    whatever tracking backend is active (a real containerized server if
+    MLFLOW_TRACKING_URI is set and reachable, otherwise mlflow's own local
+    ./mlruns fallback — both cases exercise the same code path).
+    """
+
+    @pytest.fixture(scope="class", autouse=True)
+    def pipeline_report(self):
+        from orchestration.pipeline import run  # Import the pipeline orchestrator
+
+        report = run(full_refresh=True)  # Deterministic, matches TestFullPipelineRun's approach
+        TestMLflowRunTracking.report = report
+        yield
+
+    def test_mlflow_run_id_present(self):
+        """A run ID must be captured in the report — tracking is expected to succeed
+        against the local ./mlruns fallback even when no server is configured."""
+        assert self.report.get("mlflow_run_id") is not None
+
+    def test_mlflow_run_has_expected_params_and_metrics(self):
+        from mlflow.tracking import MlflowClient
+
+        run_id = self.report["mlflow_run_id"]
+        mlflow_run = MlflowClient().get_run(run_id)
+
+        assert mlflow_run.data.params.get("run_mode") == "full_refresh"
+        assert "total_seconds" in mlflow_run.data.metrics
+        assert "raw_row_count" in mlflow_run.data.metrics
+        assert "quality_raw_total" in mlflow_run.data.metrics
+        assert mlflow_run.data.tags.get("overall_status") == "success"
+        assert mlflow_run.info.status == "FINISHED"

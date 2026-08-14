@@ -70,7 +70,9 @@ def start_run(tags: dict, run_name: Optional[str] = None) -> Optional[str]:
     try:
         active_run = mlflow.start_run(tags=tags, run_name=run_name)  # Opens a new run
         run_id = active_run.info.run_id  # Capture the ID before releasing the active context
-        mlflow.end_run(status="RUNNING")  # Release the active-run context; leave run in RUNNING state until end_run() terminates it
+        mlflow.end_run(
+            status="RUNNING"
+        )  # Release the active-run context; leave run in RUNNING state until end_run() terminates it
         return run_id
     except Exception:
         logger.warning("MLflow start_run failed; run tracking disabled for this run", exc_info=True)
@@ -82,11 +84,12 @@ def log_run_data(
     params: Optional[dict] = None,
     metrics: Optional[dict] = None,
     artifact_paths: Optional[list] = None,
+    tags: Optional[dict] = None,
 ) -> None:
     """
-    Log params, metrics, and/or artifacts to an existing MLflow run. No-op
-    if run_id is None (tracking was unavailable at start_run time) or if
-    logging itself fails for any reason.
+    Log params, metrics, tags, and/or artifacts to an existing MLflow run.
+    No-op if run_id is None (tracking was unavailable at start_run time) or
+    if logging itself fails for any reason.
 
     Parameters
     ----------
@@ -96,6 +99,9 @@ def log_run_data(
     artifact_paths : list, optional Local file paths to upload as run artifacts. Non-existent
                                      paths are silently skipped (a stage that didn't run this
                                      time, e.g. profiling disabled in config, produces no file).
+    tags           : dict, optional Key/value pairs logged as MLflow tags — e.g. a caller's
+                                     final run outcome, known only after start_run() already
+                                     returned, so it cannot be included in start_run()'s tags.
     """
     if run_id is None:  # Tracking was never available for this run — nothing to do
         return
@@ -106,6 +112,8 @@ def log_run_data(
                 mlflow.log_params(params)
             if metrics:
                 mlflow.log_metrics(metrics)
+            if tags:
+                mlflow.set_tags(tags)
             for path in artifact_paths or []:
                 if path and Path(path).exists():  # Skip stages that didn't produce a file this run
                     mlflow.log_artifact(path)
