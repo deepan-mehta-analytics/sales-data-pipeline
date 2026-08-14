@@ -106,8 +106,8 @@
 | `tests/unit/test_pipeline_state.py` | Unit | 6 | `src/utils/pipeline_state.py` (v2.0) |
 | `tests/unit/test_loader.py` | Unit | 7 | `src/load/loader.py` incremental logic (v2.0) |
 | `tests/unit/test_simulate_new_orders.py` | Unit | 9 | `scripts/simulate_new_orders.py` (v2.0) |
-| `tests/unit/test_mlflow_tracker.py` | Unit | 16 | `src/utils/mlflow_tracker.py` (v2.0) |
-| `tests/integration/test_pipeline.py` | Integration | 12 | Full end-to-end pipeline |
+| `tests/unit/test_mlflow_tracker.py` | Unit | 18 | `src/utils/mlflow_tracker.py` (v2.0) |
+| `tests/integration/test_pipeline.py` | Integration | 14 | Full end-to-end pipeline |
 | `tests/integration/test_api.py` | Integration | 15 | FastAPI query layer smoke tests |
 | `tests/integration/test_incremental_load.py` | Integration | 1 | End-to-end incremental load scenario |
 | **Total** | | **180** | |

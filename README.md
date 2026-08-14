@@ -171,7 +171,7 @@ sales-data-pipeline/
 │
 ├── tests/
 │   ├── conftest.py                 ← Shared pytest fixtures
-│   ├── unit/                       ← Fast, isolated unit tests (132 cases)
+│   ├── unit/                       ← Fast, isolated unit tests (150 cases)
 │   └── integration/                ← Full end-to-end pipeline test
 │
 ├── Dockerfile                      ← Multi-stage container build (incl. v2.0 airflow-runtime stage)
@@ -460,49 +460,6 @@ those paths.
 Stop the server with `make mlflow-down` — the pipeline/API/Airflow services
 are unaffected, and pipeline runs continue to work normally (falling back to
 the local `./mlruns` folder) whether or not the server is running.
-
----
-
-## 🔄 Incremental Load *(v2.0)*
-
-Every pipeline run — local, Docker, CI, or Airflow — now runs quality
-checks, cleaning, and feature engineering only on order rows that are new
-since the last successful run, instead of re-validating and re-transforming
-the entire dataset every time. A watermark
-(the latest `Order Date` already processed) is stored in a `pipeline_state`
-table inside `database/superstore.duckdb`, and only advances after a full
-run succeeds — a failed run never loses or skips data.
-
-Gold aggregation tables and the Silver/Gold Parquet files always reflect
-the complete accumulated dataset, not just the newest batch — only the
-`fact_sales` write itself is incremental (insert-only, deduped on `Row ID`).
-
-```bash
-# Normal run — incremental after the first time
-python orchestration/pipeline.py
-
-# Force a full reload (schema change, corrupted state, clean demo reset)
-python orchestration/pipeline.py --full-refresh
-```
-
-### Demo: simulating new orders
-
-The source dataset is a static one-time Kaggle download, so there's no
-live feed of new orders to demonstrate incremental loading against. A
-small synthetic generator (`scripts/simulate_new_orders.py`, Faker-based)
-appends realistic, schema-valid new orders to `data/bronze/sales_data.csv`
-on demand — every generated row's `Customer ID`/`Order ID` carries a `SIM`
-prefix so it's never confusable with the real historical data.
-
-```bash
-make simulate-new-orders   # Appends 25 synthetic orders dated today
-python orchestration/pipeline.py   # Incremental run picks up just those 25
-```
-
-This is a manual, local-only demo tool — it is never run automatically in
-CI or the Airflow DAG (GitHub Actions runners are ephemeral, so real
-automation would need bot-committed state that wasn't judged worth the
-added complexity for a portfolio demo feature).
 
 ---
 
