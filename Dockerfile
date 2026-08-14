@@ -177,3 +177,32 @@ COPY requirements.txt requirements-gcp.txt /tmp/
 # pipeline and api Docker stages never see it, keeping those images lean.
 RUN pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-gcp.txt \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.11.txt"
+
+
+# ---------------------------------------------------------------------------
+# Stage 6: MLflow Runtime
+# Minimal, independent image running the MLflow tracking server — SQLite
+# backend store, local artifact directory inside the container. Built from a
+# fresh venv (not extending Stage 1's builder) so this image only carries
+# the mlflow package, not the full pipeline dependency set.
+# ---------------------------------------------------------------------------
+FROM python:3.11-slim AS mlflow-runtime
+
+# Set the working directory for the tracking server.
+WORKDIR /app
+
+# Copy only the mlflow dependency manifest.
+COPY requirements-mlflow.txt .
+
+# Install mlflow (client + `mlflow server` CLI) into the system Python.
+RUN pip install --no-cache-dir -r requirements-mlflow.txt
+
+# Create the directory that will hold the SQLite backend store and artifacts;
+# docker-compose.yml mounts a named volume here for persistence across restarts.
+RUN mkdir -p /app/mlflow/artifacts
+
+# Expose the tracking server's port.
+EXPOSE 5000
+
+# Start the MLflow tracking server: SQLite backend store, local artifact root.
+CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////app/mlflow/mlflow.db", "--default-artifact-root", "/app/mlflow/artifacts"]

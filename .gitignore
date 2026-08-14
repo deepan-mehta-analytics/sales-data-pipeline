@@ -101,6 +101,11 @@ reports/run_stats_reference.json
 data/airflow_tmp/
 .env
 
+# MLflow local tracking fallback — created when MLFLOW_TRACKING_URI is unset
+# (e.g. local `make test` runs, CI). The containerized server (make mlflow-up)
+# persists to a Docker volume instead, never to this directory.
+mlruns/
+
 # -----------------------------------------------------------------------------
 # GCP credentials (v2.0 BigQuery sync) — NEVER commit the real key.
 # -----------------------------------------------------------------------------

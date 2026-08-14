@@ -53,6 +53,7 @@ x-airflow-common:
     PYTHONPATH: /opt/airflow/project                            # Lets DAG tasks `from src...` import this repo's pipeline code
     GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}                          # v2.0 BigQuery sync — read by load_bigquery_task
     BQ_DATASET_ID: ${BQ_DATASET_ID:-superstore_analytics}        # v2.0 BigQuery sync — dataset name
+    MLFLOW_TRACKING_URI: http://mlflow:5000   # v2.0 — DAG tasks reach the mlflow service by its Compose network hostname
     GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/project/credentials/gcp-service-account.json  # v2.0 — container-internal key path; hardcoded so a host-side gcloud value can't override the mount
   volumes:
     - ./dags:/opt/airflow/dags                       # This repo's DAG file(s) — see Task 3
@@ -112,6 +113,7 @@ services:
     # -------------------------------------------------------------------------
     environment:
       - PYTHONUNBUFFERED=1      # Ensures log output is not buffered
+      - MLFLOW_TRACKING_URI=http://mlflow:5000   # Reach the mlflow service by its Compose network hostname
 
     # -------------------------------------------------------------------------
     # Default command: run the full ETL pipeline.
@@ -162,6 +164,24 @@ services:
       - PYTHONUNBUFFERED=1     # Flush logs immediately to docker logs
 
     restart: unless-stopped    # Restart the API automatically on failure or system reboot
+
+  mlflow:
+    build:
+      context: .                  # Build context is the project root
+      dockerfile: Dockerfile       # Use the multi-stage project Dockerfile
+      target: mlflow-runtime       # Build only up to the MLflow runtime stage
+
+    image: sales-pipeline-mlflow:latest   # Tag the built image for easy reference
+
+    container_name: sales-pipeline-mlflow  # Fixed container name for easy 'docker logs'
+
+    ports:
+      - "5001:5000"                # Host 5001 -> container 5000 (avoids colliding with api's 8000 / Airflow's 8080)
+
+    volumes:
+      - mlflow-data:/app/mlflow    # Persists the SQLite backend store + artifacts between restarts
+
+    restart: unless-stopped        # Keep the tracking server running like the api/Airflow services
 
   postgres:
     image: postgres:16-alpine       # Airflow's metadata DB — separate from this project's DuckDB
@@ -251,3 +271,4 @@ services:
 volumes:
   postgres-db-volume:   # Airflow metadata DB storage — reused across `docker compose up`/`down`
   airflow-logs:          # Airflow's own task-execution logs
+  mlflow-data:            # MLflow's SQLite backend store + artifact directory

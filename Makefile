@@ -17,7 +17,7 @@
 # so it always executes the recipe, even if a file with the same name exists.
 # =============================================================================
 
-.PHONY: install run profile api simulate-new-orders test test-unit test-int test-api lint format clean help airflow-init airflow-up airflow-down
+.PHONY: install run profile api simulate-new-orders test test-unit test-int test-api lint format clean help airflow-init airflow-up airflow-down mlflow-up mlflow-down
 
 # ---------------------------------------------------------------------------
 # Python interpreter — override with: make run PYTHON=python3.11
@@ -113,6 +113,25 @@ airflow-down:
 	@echo "🛑 Stopping Airflow services..."
 	docker compose stop postgres airflow-apiserver airflow-scheduler airflow-dag-processor
 	@echo "✅ Airflow stopped."
+
+# ---------------------------------------------------------------------------
+# mlflow-up
+# Start the MLflow tracking server in the background.
+# UI available at http://localhost:5001 once it's up.
+# ---------------------------------------------------------------------------
+mlflow-up:
+	@echo "🚀 Starting MLflow tracking server..."
+	docker compose up -d mlflow
+	@echo "✅ MLflow UI: http://localhost:5001"
+
+# ---------------------------------------------------------------------------
+# mlflow-down
+# Stop the MLflow tracking server. The SQLite store persists in a named volume.
+# ---------------------------------------------------------------------------
+mlflow-down:
+	@echo "🛑 Stopping MLflow tracking server..."
+	docker compose stop mlflow
+	@echo "✅ MLflow stopped."
 
 # ---------------------------------------------------------------------------
 # test
@@ -220,6 +239,8 @@ help:
 	@echo "  make airflow-init  One-time Airflow setup"
 	@echo "  make airflow-up    Start Airflow (UI at http://localhost:8080)"
 	@echo "  make airflow-down  Stop Airflow services"
+	@echo "  make mlflow-up     Start the MLflow tracking server (UI at http://localhost:5001)"
+	@echo "  make mlflow-down   Stop the MLflow tracking server"
 	@echo "  make test       Run all tests with coverage report"
 	@echo "  make test-unit  Run unit tests only (fast)"
 	@echo "  make test-int   Run pipeline integration tests only"
